@@ -59,6 +59,7 @@ const Coin = require("./classes/Coin");
 const Chest = require("./classes/Chest");
 const AiPlayer = require("./classes/AiPlayer");
 const PlayerList = require("./classes/PlayerList");
+const Session = require("./classes/Session");
 const { sql } = require("./database");
 const { config } = require("dotenv");
 
@@ -580,18 +581,18 @@ Object.filter = (obj, predicate) =>
     .filter((key) => predicate(obj[key]))
     .reduce((res, key) => ((res[key] = obj[key]), res), {});
 
-var coins = [];
-var chests = [];
-
-var maxCoins = 2000;
-var maxChests = 20;
-var maxAiPlayers = 0;
-var maxPlayers = 50;
+var session = new Session({
+  maxCoins: 2000,
+  maxChests: 20,
+  maxAiPlayers: 0,
+  maxPlayers: 50
+})
 
 io.on("connection", async (socket) => {
   socket.joinTime = Date.now();
   socket.ip = socket.handshake.headers["x-forwarded-for"];
 
+  // Check if the ip is banned
   if (moderation.bannedIps.includes(socket.ip)) {
     socket.emit(
       "ban",
@@ -601,8 +602,11 @@ io.on("connection", async (socket) => {
     socket.disconnect();
   }
 
+  // When the player wants to get into the game
   socket.on("go", async (r, captchatoken, tryverify, options) => {
+    // When the sanity checks are passed, this function will run
     async function ready() {
+      // Clean the name
       var name;
       if (!tryverify) {
         try {
@@ -623,35 +627,44 @@ io.on("connection", async (socket) => {
         var name = accounts[0].username;
       }
 
+      // Create the player and get it ready
       var thePlayer = new Player(socket.id, name);
       thePlayer.updateValues();
       if (options && options.hasOwnProperty("movementMode")) {
         thePlayer.movementMode = options.movementMode;
       }
+      if(tryverify) {
+        thePlayer.verified = true;
+        thePlayer.skin = accounts[0].skins.selected;
+      }
 
+      // Add the player to the session
+      session.playerList.setPlayer(socket.id, thePlayer);
+      console.log("player joined -> " + socket.id);
 
-				if(tryverify) {
-					thePlayer.verified = true;
-					thePlayer.skin = accounts[0].skins.selected;
-				}
+      // Emit the new player
+      socket.broadcast.emit("new", thePlayer);
 
-				
-				PlayerList.setPlayer(socket.id, thePlayer);
-				console.log("player joined -> " + socket.id);
-				socket.broadcast.emit("new", thePlayer);
+      // Emit the rest of the players
+      var allPlayers = Object.values(PlayerList.players);
+      allOtherPlayers = allPlayers.filter((player) => player.id != socket.id);
+      if (allPlayers && allPlayers.length > 0) socket.emit("players", allPlayers);
 
-				var allPlayers = Object.values(PlayerList.players);
-				allPlayers = allPlayers.filter((player) => player.id != socket.id);
+      //TODO: Make coins emit only within range (not sure if this is done ill just leave this)
+      // Emit the coins
+      socket.emit("coins", coins.filter((coin) => coin.inRange(thePlayer)));
 
-				if (allPlayers && allPlayers.length > 0) socket.emit("players", allPlayers);
-				//TODO: Make coins emit only within range
-				socket.emit("coins", coins.filter((coin) => coin.inRange(thePlayer)));
-				socket.emit("chests", chests);
+      // Emit the chests
+      socket.emit("chests", chests);
 
-				socket.joined = true;
-        socket.emit("levels", levels);
+      // Emit the levels
+      socket.emit("levels", levels);
 
+      // Set that the socket is joined
+      socket.joined = true;
 		}
+
+    // Ban if captcha not sent
 		if (!captchatoken && recaptcha) {
 			socket.emit(
 				"ban",
@@ -659,10 +672,14 @@ io.on("connection", async (socket) => {
 			);
 			return socket.disconnect();
 		}
+
+    // Ban if not sent name
 		if (!r) {
 			socket.emit("ban", "You were kicked for not sending a name. ");
 			return socket.disconnect();
 		}
+
+    // Ban if player is already connected
 		if (PlayerList.has(socket.id)) {
 			socket.emit(
 				"ban",
@@ -670,17 +687,20 @@ io.on("connection", async (socket) => {
 			);
 			return socket.disconnect();
 		}
-		//console.log(Object.values(PlayerList.players).length);
+		
+    // Ban if server is full
 		if (Object.values(PlayerList.players).length >= maxPlayers) {
 			socket.emit("ban", "Server is full. Please try again later.");
 			return socket.disconnect();
 		}
 
+    // Do the captcha
 		var send = {
 			secret: process.env.CAPTCHASECRET,
 			response: captchatoken,
 			remoteip: socket.ip,
 		};
+
 		if(recaptcha) {
 			axios
 				.post(
@@ -689,6 +709,8 @@ io.on("connection", async (socket) => {
 				)
 				.then((f) => {
 					f = f.data;
+
+          // Ban if error during captcha
 					if (!f.success) {
 						socket.emit(
 							"ban",
@@ -697,6 +719,8 @@ io.on("connection", async (socket) => {
 						socket.disconnect();
 						return;
 					}
+
+          // Ban if captcha failed
 					if (f.score < 0.3) {
 						socket.emit(
 							"ban",
@@ -705,21 +729,32 @@ io.on("connection", async (socket) => {
 						socket.disconnect();
 						return;
 					}
+
+          // See the defination of ready function above
 					ready();
 				});
-		} else ready();
+		} else {
+      // If no recaptcha, skip it
+      ready();
+    }
 	});
 
+  // When the player wants to evolve
   socket.on("evolve", (eclass) => {
+    // If player is not in player list, return
     if(!PlayerList.has(socket.id)) return socket.emit("refresh");
+
+    // Get the player
     var player = PlayerList.getPlayer(socket.id);
+
+    // Some more sanity checks and then do the evolution
     if(player.evolutionQueue && player.evolutionQueue.length > 0 && player.evolutionQueue[0].includes(eclass.toLowerCase())) {
       eclass = eclass.toLowerCase();
       player.evolutionQueue.shift();
       var evo = evolutions[eclass]
       console.log(player.name + " evolved to " + eclass);
           
-        player.evolutionData = {default: evo.default(), ability: evo.ability()};
+      player.evolutionData = {default: evo.default(), ability: evo.ability()};
       player.evolution =evo.name;
       player.skin = evo.name;
       player.updateValues();
@@ -727,11 +762,17 @@ io.on("connection", async (socket) => {
       return;
     }
   });
+
+  // When the player want to use an ability
   socket.on("ability", () => {
+    // Get the player
     var player = PlayerList.getPlayer(socket.id);
+
+    // If the player has an evolution
     if(player.evolution != "") {
       // check if ability activated already
       if(player.ability <= Date.now()) {
+        // Activate ability
         player.ability = evolutions[player.evolution].abilityCooldown + evolutions[player.evolution].abilityDuration + Date.now();
         console.log(player.name + " activated ability");
         socket.emit("ability", [evolutions[player.evolution].abilityCooldown , evolutions[player.evolution].abilityDuration, Date.now()]);
