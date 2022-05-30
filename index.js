@@ -108,7 +108,6 @@ if (production) {
 	const limiter = rateLimit({
 		windowMs: 60 * 1000, // 1 min
 		max: 300, // limit each IP to 52 requests per min 
-		//Edited from 500 to 300 requests per min. bc 500 is too much and people can abuse API, in clonclusion it is not working as you want it to work. #FixByLuis
 	});
 	app.use(limiter);
 }
@@ -801,7 +800,7 @@ io.on("connection", async (socket) => {
     if(player.evolutionQueue && player.evolutionQueue.length > 0 && player.evolutionQueue[0].includes(eclass.toLowerCase())) {
       eclass = eclass.toLowerCase();
       player.evolutionQueue.shift();
-      var evo = evolutions[eclass]
+      var evo = evolutions[eclass];
       console.log(player.name + " evolved to " + eclass);
           
       player.evolutionData = {default: evo.default(), ability: evo.ability()};
@@ -935,7 +934,7 @@ io.on("connection", async (socket) => {
     // Emit the new coins
     io.sockets.emit("coin", drop, [thePlayer.pos.x, thePlayer.pos.y]);    
 
-//		sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${thePlayer.name}, ${thePlayer.coins}, ${thePlayer.kills}, ${Date.now() - thePlayer.joinTime}, ${thePlayer.verified})`;
+		sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${thePlayer.name}, ${thePlayer.coins}, ${thePlayer.kills}, ${Date.now() - thePlayer.joinTime}, ${thePlayer.verified})`;
 
     // Delete the player
 		PlayerList.deletePlayer(socket.id);
