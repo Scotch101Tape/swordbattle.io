@@ -1,3 +1,9 @@
+/*
+index.js
+The main file for the server
+This is the first file that is run
+*/
+
 const express = require("express");
 const https = require("https");
 var http = require("http");
@@ -17,10 +23,13 @@ var serverState = "running";
 var map = 10000;
 //var cors = require("cors");
 
+// The servers
 var server;
 var httpsserver;
 
 //console.log(fs.readFileSync("/etc/letsencrypt/live/test.swordbattle.io/fullchain.pem"))
+
+// Encryption stuff
 var usinghttps = false;
 if (process.env.USEFISHYSSL === "true") {
   usinghttps = true;
@@ -34,10 +43,13 @@ if (process.env.USEFISHYSSL === "true") {
   };
   httpsserver = https.createServer(options, app).listen(443);
 }
+
+// Set up the server
 server = http.createServer(app);
 
 //server = http.createServer(app);
 
+// Modules, very messy but it works and is really not important to code structure so dont touch it
 const axios = require("axios").default;
 var filter = require("leo-profanity");
 const moderation = require("./moderation");
@@ -56,35 +68,40 @@ schema
   .not()
   .spaces(undefined, "Password cant contain spaces"); // Should not have spaces
 
+// Modules
 const Player = require("./classes/Player");
 const Coin = require("./classes/Coin");
 const Chest = require("./classes/Chest");
 const AiPlayer = require("./classes/AiPlayer");
 const PlayerList = require("./classes/PlayerList");
 const Session = require("./classes/Session");
+const evolutions = require("./classes/evolutions")
 const { sql } = require("./database");
 const { config } = require("dotenv");
 
+// Contains info on cosmetics
+const cosmetics = JSON.parse(fs.readFileSync("./cosmetics.json"));
 
-
+// Sanity checks for when password and username are passed in a http request
 const checkifMissingFields = (req,res,next) => {
-if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string" || typeof req.body.captcha !== "string") {	
-		res.send({error: "Missing fields"});
-		return;
-}
-next();
+  if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string" || typeof req.body.captcha !== "string") {	
+      res.send({error: "Missing fields"});
+      return;
+  }
+  next();
 };
 
+// Set up socket.io
 const io = new Server(usinghttps ? httpsserver : server, {
   cors: { origin: "*" },
 });
 
-const evolutions = require("./classes/evolutions")
-
+// Utility function
 function getRandomInt(min, max) {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
+// If it is in production, then use rate limiter
 var production = true;
 if (production) {
 	const rateLimit = require("express-rate-limit");
@@ -96,44 +113,7 @@ if (production) {
 	app.use(limiter);
 }
 
-var oldlevels = [
-	{coins: 5, scale: 0.28, evolutions: [evolutions.tank, evolutions.berserker]},
-	{coins: 15, scale: 0.32},
-	{coins: 25, scale: 0.35},
-	{coins: 35, scale: 0.4},
-	{coins: 50, scale: 0.45},
-	{coins: 75, scale: 0.47},
-	{coins: 100, scale: 0.5},
-	{coins: 200, scale: 0.7},
-	{coins: 350, scale: 0.8},
-	{coins: 500, scale: 0.85},
-	{coins: 600, scale: 0.87},
-	{coins: 750, scale: 0.89},
-	{coins: 900, scale: 0.9},
-	{coins: 1000, scale: 0.95},
-	{coins: 1100, scale: 0.97},
-	{coins: 1250, scale: 0.99},
-	{coins: 1500, scale: 1},
-	{coins: 2000, scale: 1.04},
-	{coins: 2250, scale: 1.06},
-	{coins: 2500, scale: 1.07},
-	{coins: 2750, scale: 1.1},
-	{coins: 3000, scale: 1.15},
-	{coins: 5000, scale: 1.2},
-	{coins: 7500, scale: 1.3},
-	{coins: 9000, scale: 1.5},
-	{coins: 10000, scale: 1.53, evolutions: [evolutions.tank, evolutions.berserker]},
-  {coins: 15000, scale: 1.55},
-  {coins: 20000, scale: 1.56},
-  {coins: 25000, scale: 1.57},
-  {coins: 30000, scale: 1.58},
-  {coins: 40000, scale: 1.59},
-  {coins: 50000, scale: 1.62},
-  {coins: 60000, scale: 1.63},
-  {coins: 100000, scale: 1.7},
-  {coins: 200000, scale: 1.8},
-];
-console.log(Object.keys(oldlevels).length)
+// Idk, something, not sure, dont touch
 app.set("trust proxy", true);
 /*
 app.use((req, res, next) => {
@@ -142,16 +122,24 @@ app.use((req, res, next) => {
   next();
 });*/
 
-var levels = [];
-oldlevels.forEach((level, index)  =>{
-	if(index == 0) {
-		levels.push(Object.assign({start: 0},level)); 
+// Get the levels
+const levels = JSON.parse(fs.readFileSync("./levels.json")).map((level, index, array) => {
+  // Set start
+  if(index == 0) {
+		Object.assign({start: 0}, level);
+	} else {
+		Object.assign({start: array[index - 1].coins}, level);
 	}
-	else {
-		levels.push(Object.assign({start: levels[index - 1].coins}, level));
-	}
-});
 
+  // Replace evolution string with evolution class
+  if ("evolution" in level) {
+    level.evolution = evolutions[level.evolution];
+  }
+
+  return level;
+})
+
+// Get moderation for app
 moderation.start(app);
 
 app.use(function (req, res, next) {
@@ -178,9 +166,17 @@ app.use(function (req, res, next) {
   next();
 });
 
+/*******************************************************************************************************/
+/* App paths *******************************************************************************************/
+/*******************************************************************************************************/
+
+// / leads to dist directory
 app.use("/", express.static("dist"));
+
+// /assets leads to assets directory
 app.use("/assets", express.static("assets"));
 
+// /api/buy allows for buying cosmetic
 app.post("/api/buy", async (req, res) => {
   //read cosmetics.json
   var cosmetics = JSON.parse(fs.readFileSync("./cosmetics.json"));
@@ -189,103 +185,142 @@ app.post("/api/buy", async (req, res) => {
   var secret = req.body.secret;
   var item = req.body.item;
 
+  // Santiy check for if they sent an item
   if (!item || item == "undefined") {
     res.status(400).send("No item specified");
     return;
   }
+
+  // Try to find item in the cosmetics
   var item = cosmetics.skins.find((e) => e.name == item);
+
+  // Santiy check for if the item exists
   if (!item) {
     res.status(400).send("Item not found");
     return;
   }
 
   var acc;
+  // Make sure the secret exists
   if (secret && secret != "undefined") {
-    var account =
-      await sql`select skins,coins,username from accounts where secret=${secret}`;
+    // Get the account
+    var account = await sql`select skins,coins,username from accounts where secret=${secret}`;
+
+    // Make sure account exists
     if (account[0]) {
       acc = account[0];
       var yo =
         await sql`SELECT sum(coins) FROM games WHERE lower(name)=${acc.username.toLowerCase()} AND verified='true';`;
       acc.bal = yo[0].sum + acc.coins;
+
+      // Check if the item is already bought
       if (acc.skins.collected.includes(item.name)) {
         res.status(400).send("Skin already owned");
         return;
       }
+
+      // Check if the item is too many coins for the player trying to buy it
       if (acc.bal < item.price) {
         res.status(406).send("Not enough coins");
         return;
       }
 
+      // Update the balence and skins of the player
       var newbal = acc.coins - item.price;
       var newskins = acc.skins;
       newskins.collected.push(item.name);
+
+      // Update the database
       await sql`UPDATE accounts SET skins=${JSON.stringify(
         newskins
       )},coins=${newbal} WHERE secret=${secret}`;
+
+      // Send a sucess back
       res.send("Success");
       return;
     } else {
+      // Error for bad secret
       res.status(400).send("Invalid secret");
       return;
     }
   } else {
+    // Error for no secret
     res.status(400).send("No secret provided");
     return;
   }
 });
-app.post("/api/equip", async (req, res) => {
-  //read cosmetics.json
-  var cosmetics = JSON.parse(fs.readFileSync("./cosmetics.json"));
 
-  //get user data
+// /api/equip allows for equiping a skin
+app.post("/api/equip", async (req, res) => {
+  // get data from request
   var secret = req.body.secret;
   var item = req.body.item;
 
+  // Sanity check for if the item was sent
   if (!item || item == "undefined") {
     res.status(400).send("No item specified");
     return;
   }
+  
+  // Trying to find the item specified
   var item = cosmetics.skins.find((e) => e.name == item);
+
+  // Sanity check for if the item exists
   if (!item) {
     res.status(400).send("Item not found");
     return;
   }
 
   var acc;
+  // Make sure secret was sent
   if (secret && secret != "undefined") {
-    var account =
-      await sql`select skins,coins,username from accounts where secret=${secret}`;
+    // Get the account associated with the secret
+    var account = await sql`select skins,coins,username from accounts where secret=${secret}`;
+
+    // Make sure the account exists
     if (account[0]) {
       acc = account[0];
+      // Make sure the player owns the skin
       if (acc.skins.collected.includes(item.name)) {
+        // Update which skin is equipped
         var newskins = acc.skins;
         newskins.selected = item.name;
+
+        // Updata database
         await sql`UPDATE accounts SET skins=${JSON.stringify(
           newskins
         )} WHERE secret=${secret}`;
+
+        // Return success
         res.send("Success");
         return;
       } else {
+        // Error if the item is not owned
         res.status(400).send("Item not owned");
         return;
       }
     } else {
+      // Error if the secret is bad
       res.status(400).send("Invalid secret");
       return;
     }
   } else {
+    // Error if no secret
     res.status(400).send("No secret provided");
     return;
   }
 });
 
-
+// /api/signup allows for players to sign up
+// the checkifMissingFields middleware runs sanity checks to make sure that the correct information is in the body
 app.post("/api/signup",checkifMissingFields, async (req, res) => {
+  // Seems redundant as checkifMissingFields just did this, though I will not mess with it
 	if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string") {	
 		res.send({error: "Missing fields"});
 		return;
 	}
+
+  // Make sure the email is valid
 	if(req.body.email && req.body.email.length > 30) {
 		res.send({error: "Email too long"});
 		return;
@@ -294,10 +329,14 @@ app.post("/api/signup",checkifMissingFields, async (req, res) => {
 		res.send({error: "Invalid email"});
 		return;
 	}
+
+  // Make sure the password is valid
 	if(!schema.validate(req.body.password)) {
 		res.send({error:schema.validate(req.body.password, { details: true })[0].message});
 		return;
 	}
+  
+  // Make sure the username is valid
 	var username = req.body.username;
 	if(username.length >= 20) {
 		res.send({error: "Username has to be shorter than 20 characters"});
@@ -316,31 +355,34 @@ app.post("/api/signup",checkifMissingFields, async (req, res) => {
 		res.send({error: "Username can only contain letters, numbers, spaces, and the following symbols: !@\"$%&:';()*\+,-=[\]\^_{|}<>~`"});
 		return;
 	}
-	
 	var containsProfanity = filter.check(username);
 	if(containsProfanity) {
 		res.send({error: "Username contains a bad word!\nIf this is a mistake, please contact an admin."});
 		return;
 	}
 	var exists = await sql`select exists(select 1 from accounts where lower(username)=lower(${username}))`;
-
 	if (exists[0].exists) {
 		res.send({error: "Username already taken"});
 		return;
 	}
 
+  // Encrpyt the username and password and put it into the database
 	bcrypt.hash(req.body.password, 10, (err, hash) => {
 		if (err) {
+      // Send error if anything fails
 			res.status(500).send({error:"Internal server error"});
 			return;
 		}
+
+    // Create a secret for the account
 		var secret = uuid.v4();
+
+    // Update the database
 		sql`insert into accounts(username, password, email, secret, skins, lastlogin) values(${username}, ${hash}, ${req.body.email}, ${secret}, ${JSON.stringify({collected: ["player"], selected: "player"})}, ${Date.now()})`;
+
+    // Send the secret back
 		res.send({secret: secret});
 	});
-
-
-
 });
 
 app.post("/api/login",checkifMissingFields, async (req, res) => { 
@@ -582,6 +624,10 @@ Object.filter = (obj, predicate) =>
   Object.keys(obj)
     .filter((key) => predicate(obj[key]))
     .reduce((res, key) => ((res[key] = obj[key]), res), {});
+
+/*************************************************************************************************/
+/* Socket Connections ****************************************************************************/
+/*************************************************************************************************/
 
 // Create a new session of the game
 var session = new Session({
