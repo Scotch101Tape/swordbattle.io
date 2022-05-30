@@ -33,5 +33,5 @@
   {"coins": 50000, "scale": 1.62},
   {"coins": 60000, "scale": 1.63},
   {"coins": 100000, "scale": 1.7},
-  {"coins": 200000, "scale": 1.8},
+  {"coins": 200000, "scale": 1.8}
 ]
