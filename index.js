@@ -10,8 +10,10 @@ var uuid = require("uuid");
 var fs = require("fs");
 var process = require("process");
 
+// When the server is exiting and preping to shut down, this turns to "exiting"
 var serverState = "running";
 
+// The size of the map
 var map = 10000;
 //var cors = require("cors");
 
@@ -581,6 +583,7 @@ Object.filter = (obj, predicate) =>
     .filter((key) => predicate(obj[key]))
     .reduce((res, key) => ((res[key] = obj[key]), res), {});
 
+// Create a new session of the game
 var session = new Session({
   maxCoins: 2000,
   maxChests: 20,
@@ -588,6 +591,7 @@ var session = new Session({
   maxPlayers: 50
 })
 
+// When the socket connects
 io.on("connection", async (socket) => {
   socket.joinTime = Date.now();
   socket.ip = socket.handshake.headers["x-forwarded-for"];
@@ -780,6 +784,7 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // When the player has a new mousePos
 	socket.on("mousePos", (mousePos) => {
 		if (PlayerList.has(socket.id)) {
 			var thePlayer = PlayerList.getPlayer(socket.id);
@@ -792,6 +797,7 @@ io.on("connection", async (socket) => {
 		//console.log(mousePos.x +" , "+mousePos.y )
 	});
   
+  //  When the players mouse is down or up
 	socket.on("mouseDown", (down) => {
 		if (PlayerList.has(socket.id)) {
 			var player = PlayerList.getPlayer(socket.id);
@@ -801,6 +807,7 @@ io.on("connection", async (socket) => {
 		} else socket.emit("refresh");
 	});
 
+  // 
 	socket.on("move", (controller) => {
 		if (!controller) return;
 		try {
@@ -816,68 +823,104 @@ io.on("connection", async (socket) => {
 	socket.on( "ping", function ( fn ) {
 		fn(); // Simply execute the callback on the client
 	} );
+
+  // When a player wants to chat
 	socket.on("chat", (msg) => {
 		msg = msg.trim().replace(/\\/g, "\\\\");
 		if (msg.length > 0) {
+      /// Trim the message
 			if (msg.length > 35) msg = msg.substring(0, 35);
+
+      // Sanity checks
 			if (!PlayerList.has(socket.id) || Date.now() - PlayerList.getPlayer(socket.id).lastChat < 1000) return;
+
+      // Set the last chat time
 			var p = PlayerList.getPlayer(socket.id);
 			p.lastChat = Date.now();
-			PlayerList.setPlayer(socket.id, p);
+			// PlayerList.setPlayer(socket.id, p); I dont think this needs to be uncommented
 			
-				io.sockets.emit("chat", {
-					msg: filter.clean(msg),
-					id: socket.id,
-				});
-			}
-		});
+      // Emit chat
+      io.sockets.emit("chat", {
+        msg: filter.clean(msg),
+        id: socket.id,
+      });
+		}
+	});
+
+  // Def should put this in util
 	function clamp(num, min, max) {
 		return num <= min ? min : num >= max ? max : num;
 	}
+
+  // When the player wants to leave
 	socket.on("disconnect", () => {
+    // If the server is shutting down ignore this
 		if(serverState == "exiting") return;
+
+    // Sanity checks
 		if (!PlayerList.has(socket.id)) return;
+
+    // Get the player
 		var thePlayer = PlayerList.getPlayer(socket.id);
 
-              //drop their coins
-              var drop = [];
-              var dropAmount = clamp(Math.round(thePlayer.coins*0.8), 10, 20000);
-              var dropped = 0;
-              while (dropped < dropAmount) {
-                var r = thePlayer.radius * thePlayer.scale * Math.sqrt(Math.random());
-                var theta = Math.random() * 2 * Math.PI;
-                var x = thePlayer.pos.x + r * Math.cos(theta);
-                var y = thePlayer.pos.y + r * Math.sin(theta);
-                var remaining = dropAmount - dropped;
-                var value = remaining > 50 ? 50 : (remaining > 10 ? 10 : (remaining > 5 ? 5 : 1));
+    //drop their coins randomly near them
+    var drop = [];
+    var dropAmount = clamp(Math.round(thePlayer.coins*0.8), 10, 20000);
+    var dropped = 0;
+    while (dropped < dropAmount) {
+      var r = thePlayer.radius * thePlayer.scale * Math.sqrt(Math.random());
+      var theta = Math.random() * 2 * Math.PI;
+      var x = thePlayer.pos.x + r * Math.cos(theta);
+      var y = thePlayer.pos.y + r * Math.sin(theta);
+      var remaining = dropAmount - dropped;
+      var value = remaining > 50 ? 50 : (remaining > 10 ? 10 : (remaining > 5 ? 5 : 1));
 
-                coins.push(
-                  new Coin({
-                    x: clamp(x, -(map/2), map/2),
-                    y: clamp(y, -(map/2), map/2),
-                  },value)
-                );
-                dropped += value;
-                drop.push(coins[coins.length - 1]);
-              }
+      coins.push(
+        new Coin({
+          x: clamp(x, -(map/2), map/2),
+          y: clamp(y, -(map/2), map/2),
+        }, value)
+      );
 
-                io.sockets.emit("coin", drop, [thePlayer.pos.x, thePlayer.pos.y]);
-								
-              
+      dropped += value;
+      drop.push(coins[coins.length - 1]);
+    }
+
+    // Emit the new coins
+    io.sockets.emit("coin", drop, [thePlayer.pos.x, thePlayer.pos.y]);    
 
 //		sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${thePlayer.name}, ${thePlayer.coins}, ${thePlayer.kills}, ${Date.now() - thePlayer.joinTime}, ${thePlayer.verified})`;
 
+    // Delete the player
 		PlayerList.deletePlayer(socket.id);
+
+    // Emit the player left
 		socket.broadcast.emit("playerLeave", socket.id);
 	});
 });
 
-//tick
+
+/***********************************************/
+/* Tick ****************************************/
+/***********************************************/
+
+// The last second that was surpassed, used for computing tps
 var secondStart = Date.now();
+
+// The last time that the server sent out a PSA about where all the chests and coins are
+// For some reason the server does this every 10 seconds
 var lastChestSend = Date.now();
 var lastCoinSend = Date.now();
+
+// The counter for ticks per second
+// increamented every time a tick runs
 var tps = 0;
+
+// The actual ticks per second, hold the last tps value that was valid
+// (This is used because the tps variable is used for calculating the ticks per second)
 var actps = 0;
+
+// app/api/serverinfo leads to a json of stats
 app.get("/api/serverinfo", (req, res) => {
   var playerCount = Object.values(PlayerList.players).length;
   var lag = actps > 15 ? "No lag" : actps > 6 ? "Moderate lag" : "Extreme lag";
@@ -891,50 +934,76 @@ app.get("/api/serverinfo", (req, res) => {
   });
 });
 
+// 30 times per second do this (1000 / 30 ms)
 setInterval(async () => {
 	//const used = process.memoryUsage().heapUsed / 1024 / 1024;
 //console.log(`The script uses approximately ${Math.round(used * 100) / 100} MB`);
+
+  // clean up the playerlist
 	PlayerList.clean();
+
+  // Set the mod io to io???? (idk why this is here)
 	moderation.io = io;
+
+  // Add a new coin if the maxCoins are not reached
 	if (coins.length < maxCoins) {
 		coins.push(new Coin());
 		io.sockets.emit("coin", coins[coins.length - 1]);
 	}
+
+  // Add a new chest if the maxChests are not reached
 	if(chests.length < maxChests) {
 		chests.push(new Chest());
 		io.sockets.emit("chest", chests[chests.length - 1]);
 	}
+
+  // TODO: just create methods from these, much more readable
 	var normalPlayers = Object.values(PlayerList.players).filter(p => p && !p.ai).length;
 	var aiPlayers = Object.keys(PlayerList.players).length;
-  
-	// console.log(aiNeeded)
 
-
+  // Add a new ai player if there are real players and a random condition is met
 	if (normalPlayers > 0 && aiPlayers < maxAiPlayers && getRandomInt(0,100) == 5) {
+    // Create the ai player
 		var id = uuidv4();
 		var theAi = new AiPlayer(id);
 		console.log("AI Player Joined -> "+theAi.name);
+
+    // Add it to the list
 		PlayerList.setPlayer(id, theAi);
+
+    // Emit a new player
 		io.sockets.emit("new", theAi);
 	}
-	//emit tps to clients
+
+	// If its been one second since lst calculating the tps
 	if (Date.now() - secondStart >= 1000) {
+    // Emit ticks per second
 		io.sockets.emit("tps", tps);
+
+    // Update the actual ticks per second varaible
 		actps = tps;
 		//console.log("Players: "+Object.keys(players).length+"\nTPS: "+tps+"\n")
+
+    // Update when the tps was last calculated
 		secondStart = Date.now();
+
+    // Restart the tps counter
 		tps = 0;
 	}
+
+  // If its been 10 seconds since the last chest PSA
 	if (Date.now() - lastChestSend >= 10000) {
+    // Emit the chests
 		io.sockets.emit("chests", chests);
 
+    // Update the last time it happened
 		lastChestSend = Date.now();
 	}
 
-	//health regen
-	var playersarray = Object.values(PlayerList.players);
+  // Get all the sockets
 	var sockets = await io.fetchSockets();
 
+  // Check for join packets and kick if one is not sent
 	sockets.forEach((b) => {
 		if (!b.joined && Date.now() - b.joinTime > 10000) {
 			b.emit(
@@ -945,49 +1014,80 @@ setInterval(async () => {
 		}
 	});
 
+  // Health regen
+  var playersarray = Object.values(PlayerList.players);
 	playersarray.forEach((player) => {
-    
-		if(player) {
+		if (player) {
+      // Update the player values
       player.updateValues()
 			//   player.moveWithMouse(players)
+
+      // Tick ai players
 			if(player.ai) {
-				[coins,chests] = player.tick(coins, io, levels, chests);
+				[coins, chests] = player.tick(coins, io, levels, chests);
 			}
+
+      // if its been x seconds since player got hit, regen then every 100 ms
 			if (
 				Date.now() - player.lastHit > player.healWait &&
-      Date.now() - player.lastRegen > 75 &&
-      player.health < player.maxHealth
+        Date.now() - player.lastRegen > 75 &&
+        player.health < player.maxHealth
 			) {
-				//if its been x seconds since player got hit, regen then every 100 ms
+				// Heal ❤️
 				player.lastRegen = Date.now();
 				player.health += (player.health / 100)*player.healAmount;
 			}
+
+      // Might be unessicary
+      // Not sure
+      // But this updates the player in the playerList
 			PlayerList.updatePlayer(player);
 
 			//emit player data to all clients
+      // Keeping in mind this is in a loop over all the players
+      // So it goes
+      // for player in players:
+      //   for socket in sockets:
+      //     *function below*
 			sockets.forEach((socket) => {
-				if(!player.getSendObj()) console.log("gg");
-				if (player.id != socket.id) socket.emit("player", player.getSendObj());
-				else {
+        // If the player does not have a send object, well, ig its over so gg
+				if (!player.getSendObj()) console.log("gg");
+
+        // If the socket does not correspond with the player
+				if (player.id != socket.id) {
+          // Emit "player" with the send object
+          socket.emit("player", player.getSendObj());
+        } else { // If the socket corresponds with the player
+          // emit "me" with the player (NOT the send object)
 					socket.emit("me", player);
-				if(Date.now() - lastCoinSend >= 1000) {
-					socket.emit("coins", coins.filter((coin) => coin.inRange(player)));
-				}
+          // If its been a second since the last coin send
+          if(Date.now() - lastCoinSend >= 1000) {
+            // Emit the coins the are next to the player
+            socket.emit("coins", coins.filter((coin) => coin.inRange(player)));
+          }
 				}
 			});
 		}
 	});
+
+  // reset the time when the last coin send was
 	if(Date.now() - lastCoinSend >= 1000) {
 		lastCoinSend = Date.now();
 	}
+
+  // Increment tps for calculation
 	tps += 1;
 }, 1000 / 30);
 
+// Start the server and listen on the port in the .env
+// If the port is not in the .env, then use 3000
 server.listen(process.env.PORT || 3000, () => {
   console.log("server started");
 });
 
+// When the code is told to stop
 process.on("SIGTERM", () => {
+  // Do a clean exit
   cleanExit()
     .then(() => {
       console.log("exited cleanly");
@@ -998,7 +1098,10 @@ process.on("SIGTERM", () => {
       process.exit(1);
     });
 });
+
+// When ctrl-C is pressed in terminal
 process.on("SIGINT", () => {
+  // Do a clean exit
   cleanExit()
     .then(() => {
       console.log("exited cleanly");
@@ -1009,7 +1112,8 @@ process.on("SIGINT", () => {
       process.exit(1);
     });
 });
-//unhandledRejection
+
+// When there is a an unhandled rejection
 process.on("unhandledRejection", (reason, p) => {
   console.log("Unhandled Rejection at: Promise", p, "reason:", reason);
   cleanExit()
@@ -1023,16 +1127,28 @@ process.on("unhandledRejection", (reason, p) => {
     });
 });
 
+// Cleanly exit
 async function cleanExit() {
   console.log("exiting cleanly...");
+
+  // Set the server state to exiting
+  // This will make it so players leaving are ignored
   serverState = "exiting";
 
+  // Get all the sockets
   var sockets = await io.fetchSockets();
 
+  // For each player
   for (var player of Object.values(PlayerList.players)) {
+    // If the player is a real player
     if (player && !player.ai) {
+
+      // Get the socket that corresponds with the player
       var socket = sockets.find((s) => s.id == player.id);
+
+      // If there is a socket that corresponds
       if (socket) {
+        // Ban the player or being in the server when it was closing ;(
         socket.emit(
           "ban",
           "<h1>Server is shutting down, we'll be right back!<br>Sorry for the inconvenience.<br><br>" +
@@ -1042,6 +1158,8 @@ async function cleanExit() {
             "</h1><hr>"
         );
         socket.disconnect();
+
+        // Save the player stats
         await sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${
           player.name
         }, ${player.coins}, ${player.kills}, ${Date.now() - player.joinTime}, ${
