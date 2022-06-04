@@ -1,17 +1,18 @@
 const Player = require("./Player");
-const PlayerList = require("./PlayerList");
+const PlayerList = require("./Players"); //TODO: Change PlayerList to this.session.playerList
+
 function getRandomInt(min, max) {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 const { faker } = require("@faker-js/faker");
 class AiPlayer extends Player {
-    constructor(id) {
+    constructor(id, session) {
       var aiName = faker.name.findName().split(" ");
       // this is because some names have Mr. or Ms. in them
       if (aiName.length > 2) aiName = aiName[1];
       else aiName = aiName[0];
        
-        super(id,  aiName);
+        super(id,  aiName, session);
         this.ai = true;
         this.target = undefined;
         this.lastHit = Date.now();
@@ -21,6 +22,7 @@ class AiPlayer extends Player {
         this.movementMode = "mouse";
         
     }
+
     tick(coins, io, levels, chests) {
       if(PlayerList.deadPlayers.includes(this.id)) {
         PlayerList.deletePlayer(this.id);
