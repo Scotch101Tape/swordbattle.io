@@ -1,3 +1,9 @@
+/*
+index.js
+The main file for the server
+This is the first file that is run
+*/
+
 const express = require("express");
 const https = require("https");
 var http = require("http");
@@ -10,15 +16,20 @@ var uuid = require("uuid");
 var fs = require("fs");
 var process = require("process");
 
+// When the server is exiting and preping to shut down, this turns to "exiting"
 var serverState = "running";
 
+// The size of the map
 var map = 10000;
 //var cors = require("cors");
 
+// The servers
 var server;
 var httpsserver;
 
 //console.log(fs.readFileSync("/etc/letsencrypt/live/test.swordbattle.io/fullchain.pem"))
+
+// Encryption stuff
 var usinghttps = false;
 if (process.env.USEFISHYSSL === "true") {
   usinghttps = true;
@@ -32,10 +43,13 @@ if (process.env.USEFISHYSSL === "true") {
   };
   httpsserver = https.createServer(options, app).listen(443);
 }
+
+// Set up the server
 server = http.createServer(app);
 
 //server = http.createServer(app);
 
+// Modules, very messy but it works and is really not important to code structure so dont touch it
 const axios = require("axios").default;
 var filter = require("leo-profanity");
 const moderation = require("./moderation");
@@ -54,34 +68,41 @@ schema
   .not()
   .spaces(undefined, "Password cant contain spaces"); // Should not have spaces
 
+// Modules
 const Player = require("./classes/Player");
 const Coin = require("./classes/Coin");
 const Chest = require("./classes/Chest");
 const AiPlayer = require("./classes/AiPlayer");
-const PlayerList = require("./classes/PlayerList");
+const PlayerList = require("./classes/Players");
+const Session = require("./classes/Session");
+const evolutions = require("./classes/evolutions")
+const Sessions = require("./classes/Sessions");
 const { sql } = require("./database");
 const { config } = require("dotenv");
 
+// Contains info on cosmetics
+const cosmetics = JSON.parse(fs.readFileSync("./cosmetics.json"));
 
-
+// Sanity checks for when password and username are passed in a http request
 const checkifMissingFields = (req,res,next) => {
-if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string" || typeof req.body.captcha !== "string") {	
-		res.send({error: "Missing fields"});
-		return;
-}
-next();
+  if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string" || typeof req.body.captcha !== "string") {	
+      res.send({error: "Missing fields"});
+      return;
+  }
+  next();
 };
 
+// Set up socket.io
 const io = new Server(usinghttps ? httpsserver : server, {
   cors: { origin: "*" },
 });
 
-const evolutions = require("./classes/evolutions");
-
+// Utility function
 function getRandomInt(min, max) {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
+// If it is in production, then use rate limiter
 var production = true;
 if (production) {
 	const rateLimit = require("express-rate-limit");
@@ -92,45 +113,7 @@ if (production) {
 	app.use(limiter);
 }
 
-var oldlevels = [
-	{coins: 5, scale: 0.28},
-	{coins: 15, scale: 0.32},
-	{coins: 25, scale: 0.35},
-	{coins: 35, scale: 0.4},
-	{coins: 50, scale: 0.45},
-	{coins: 75, scale: 0.47},
-	{coins: 100, scale: 0.5},
-	{coins: 200, scale: 0.7},
-	{coins: 350, scale: 0.8},
-	{coins: 500, scale: 0.85},
-	{coins: 600, scale: 0.87},
-	{coins: 750, scale: 0.89},
-	{coins: 900, scale: 0.9},
-	{coins: 1000, scale: 0.95},
-	{coins: 1100, scale: 0.97},
-	{coins: 1250, scale: 0.99},
-	{coins: 1500, scale: 1},
-	{coins: 2000, scale: 1.04},
-	{coins: 2250, scale: 1.06},
-	{coins: 2500, scale: 1.07},
-	{coins: 2750, scale: 1.1},
-	{coins: 3000, scale: 1.15},
-  {coins: 4000, scale: 1.17},
-	{coins: 5000, scale: 1.2, evolutions: [evolutions.tank, evolutions.berserker]},
-	{coins: 7500, scale: 1.3},
-	{coins: 9000, scale: 1.5},
-	{coins: 10000, scale: 1.53},
-  {coins: 15000, scale: 1.55},
-  {coins: 20000, scale: 1.56},
-  {coins: 25000, scale: 1.57},
-  {coins: 30000, scale: 1.58},
-  {coins: 40000, scale: 1.59},
-  {coins: 50000, scale: 1.62},
-  {coins: 60000, scale: 1.63},
-  {coins: 100000, scale: 1.7},
-  {coins: 200000, scale: 1.8},
-];
-console.log(Object.keys(oldlevels).length);
+// Idk, something, not sure, dont touch
 app.set("trust proxy", true);
 /*
 app.use((req, res, next) => {
@@ -139,15 +122,6 @@ app.use((req, res, next) => {
   next();
 });*/
 
-var levels = [];
-oldlevels.forEach((level, index)  =>{
-	if(index == 0) {
-		levels.push(Object.assign({start: 0},level)); 
-	}
-	else {
-		levels.push(Object.assign({start: levels[index - 1].coins}, level));
-	}
-});
 
 moderation.start(app, io);
 
@@ -175,9 +149,17 @@ app.use(function (req, res, next) {
   next();
 });
 
+/*******************************************************************************************************/
+/* App paths *******************************************************************************************/
+/*******************************************************************************************************/
+
+// / leads to dist directory
 app.use("/", express.static("dist"));
+
+// /assets leads to assets directory
 app.use("/assets", express.static("assets"));
 
+// /api/buy allows for buying cosmetic
 app.post("/api/buy", async (req, res) => {
   //read cosmetics.json
   var cosmetics = JSON.parse(fs.readFileSync("./cosmetics.json"));
@@ -186,103 +168,142 @@ app.post("/api/buy", async (req, res) => {
   var secret = req.body.secret;
   var item = req.body.item;
 
+  // Santiy check for if they sent an item
   if (!item || item == "undefined") {
     res.status(400).send("No item specified");
     return;
   }
+
+  // Try to find item in the cosmetics
   var item = cosmetics.skins.find((e) => e.name == item);
+
+  // Santiy check for if the item exists
   if (!item) {
     res.status(400).send("Item not found");
     return;
   }
 
   var acc;
+  // Make sure the secret exists
   if (secret && secret != "undefined") {
-    var account =
-      await sql`select skins,coins,username from accounts where secret=${secret}`;
+    // Get the account
+    var account = await sql`select skins,coins,username from accounts where secret=${secret}`;
+
+    // Make sure account exists
     if (account[0]) {
       acc = account[0];
       var yo =
         await sql`SELECT sum(coins) FROM games WHERE lower(name)=${acc.username.toLowerCase()} AND verified='true';`;
       acc.bal = yo[0].sum + acc.coins;
+
+      // Check if the item is already bought
       if (acc.skins.collected.includes(item.name)) {
         res.status(400).send("Skin already owned");
         return;
       }
+
+      // Check if the item is too many coins for the player trying to buy it
       if (acc.bal < item.price) {
         res.status(406).send("Not enough coins");
         return;
       }
 
+      // Update the balence and skins of the player
       var newbal = acc.coins - item.price;
       var newskins = acc.skins;
       newskins.collected.push(item.name);
+
+      // Update the database
       await sql`UPDATE accounts SET skins=${JSON.stringify(
         newskins
       )},coins=${newbal} WHERE secret=${secret}`;
+
+      // Send a sucess back
       res.send("Success");
       return;
     } else {
+      // Error for bad secret
       res.status(400).send("Invalid secret");
       return;
     }
   } else {
+    // Error for no secret
     res.status(400).send("No secret provided");
     return;
   }
 });
-app.post("/api/equip", async (req, res) => {
-  //read cosmetics.json
-  var cosmetics = JSON.parse(fs.readFileSync("./cosmetics.json"));
 
-  //get user data
+// /api/equip allows for equiping a skin
+app.post("/api/equip", async (req, res) => {
+  // get data from request
   var secret = req.body.secret;
   var item = req.body.item;
 
+  // Sanity check for if the item was sent
   if (!item || item == "undefined") {
     res.status(400).send("No item specified");
     return;
   }
+  
+  // Trying to find the item specified
   var item = cosmetics.skins.find((e) => e.name == item);
+
+  // Sanity check for if the item exists
   if (!item) {
     res.status(400).send("Item not found");
     return;
   }
 
   var acc;
+  // Make sure secret was sent
   if (secret && secret != "undefined") {
-    var account =
-      await sql`select skins,coins,username from accounts where secret=${secret}`;
+    // Get the account associated with the secret
+    var account = await sql`select skins,coins,username from accounts where secret=${secret}`;
+
+    // Make sure the account exists
     if (account[0]) {
       acc = account[0];
+      // Make sure the player owns the skin
       if (acc.skins.collected.includes(item.name)) {
+        // Update which skin is equipped
         var newskins = acc.skins;
         newskins.selected = item.name;
+
+        // Updata database
         await sql`UPDATE accounts SET skins=${JSON.stringify(
           newskins
         )} WHERE secret=${secret}`;
+
+        // Return success
         res.send("Success");
         return;
       } else {
+        // Error if the item is not owned
         res.status(400).send("Item not owned");
         return;
       }
     } else {
+      // Error if the secret is bad
       res.status(400).send("Invalid secret");
       return;
     }
   } else {
+    // Error if no secret
     res.status(400).send("No secret provided");
     return;
   }
 });
 
-
+// /api/signup allows for players to sign up
+// the checkifMissingFields middleware runs sanity checks to make sure that the correct information is in the body
 app.post("/api/signup",checkifMissingFields, async (req, res) => {
+  // Seems redundant as checkifMissingFields just did this, though I will not mess with it
 	if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string") {	
 		res.send({error: "Missing fields"});
 		return;
 	}
+
+  // Make sure the email is valid
 	if(req.body.email && req.body.email.length > 30) {
 		res.send({error: "Email too long"});
 		return;
@@ -291,10 +312,14 @@ app.post("/api/signup",checkifMissingFields, async (req, res) => {
 		res.send({error: "Invalid email"});
 		return;
 	}
+
+  // Make sure the password is valid
 	if(!schema.validate(req.body.password)) {
 		res.send({error:schema.validate(req.body.password, { details: true })[0].message});
 		return;
 	}
+  
+  // Make sure the username is valid
 	var username = req.body.username;
 	if(username.length >= 20) {
 		res.send({error: "Username has to be shorter than 20 characters"});
@@ -313,31 +338,34 @@ app.post("/api/signup",checkifMissingFields, async (req, res) => {
 		res.send({error: "Username can only contain letters, numbers, spaces, and the following symbols: !@\"$%&:';()*\+,-=[\]\^_{|}<>~`"});
 		return;
 	}
-	
 	var containsProfanity = filter.check(username);
 	if(containsProfanity) {
 		res.send({error: "Username contains a bad word!\nIf this is a mistake, please contact an admin."});
 		return;
 	}
 	var exists = await sql`select exists(select 1 from accounts where lower(username)=lower(${username}))`;
-
 	if (exists[0].exists) {
 		res.send({error: "Username already taken"});
 		return;
 	}
 
+  // Encrpyt the username and password and put it into the database
 	bcrypt.hash(req.body.password, 10, (err, hash) => {
 		if (err) {
+      // Send error if anything fails
 			res.status(500).send({error:"Internal server error"});
 			return;
 		}
+
+    // Create a secret for the account
 		var secret = uuid.v4();
+
+    // Update the database
 		sql`insert into accounts(username, password, email, secret, skins, lastlogin) values(${username}, ${hash}, ${req.body.email}, ${secret}, ${JSON.stringify({collected: ["player"], selected: "player"})}, ${Date.now()})`;
+
+    // Send the secret back
 		res.send({secret: secret});
 	});
-
-
-
 });
 
 app.post("/api/login",checkifMissingFields, async (req, res) => { 
@@ -436,9 +464,6 @@ app.get("/skins", async (req, res) => {
 });
 
 app.get("/shop", async (req, res) => {
-  //read cosmetics.json
-  var cosmetics = JSON.parse(fs.readFileSync("./cosmetics.json"));
-
   //get user data
   var secret = req.query.secret;
   var acc;
@@ -580,18 +605,26 @@ Object.filter = (obj, predicate) =>
     .filter((key) => predicate(obj[key]))
     .reduce((res, key) => ((res[key] = obj[key]), res), {});
 
-var coins = [];
-var chests = [];
+/*************************************************************************************************/
+/* Socket Connections ****************************************************************************/
+/*************************************************************************************************/
 
-var maxCoins = 2000;
-var maxChests = 20;
-var maxAiPlayers = 15;
-var maxPlayers = 50;
+// Max number of players allowed to connect to server (arbitrary for now)
+const MAX_TOTAL_PLAYERS = 1000;
 
+// Create a new session of the game
+var sessions = new Sessions();
+
+// Holds all sockets connected to the server and which room they are in
+// {socketId: room}
+socketIds = {};
+
+// When the socket connects
 io.on("connection", async (socket) => {
   socket.joinTime = Date.now();
   socket.ip = socket.handshake.headers["x-forwarded-for"];
 
+  // Check if the ip is banned
   if (moderation.bannedIps.includes(socket.ip)) {
     socket.emit(
       "ban",
@@ -601,57 +634,33 @@ io.on("connection", async (socket) => {
     socket.disconnect();
   }
 
+  // When the player wants to get into the game
   socket.on("go", async (r, captchatoken, tryverify, options) => {
+    // When the sanity checks are passed, this function will run
     async function ready() {
-      var name;
-      if (!tryverify) {
-        try {
-          name = filter.clean(r.substring(0, 16));
-        } catch (e) {
-          name = r.substring(0, 16);
-        }
-      } else {
-        var accounts = await sql`select * from accounts where secret=${r}`;
-        if (!accounts[0]) {
-          socket.emit(
-            "ban",
-            "Invalid secret, please try logging out and relogging in"
-          );
-          socket.disconnect();
-          return;
-        }
-        var name = accounts[0].username;
-      }
+      // Add socket to sockets
+      sockets[socket.id] = socket;
 
-      var thePlayer = new Player(socket.id, name);
-      thePlayer.updateValues();
-      if (options && options.hasOwnProperty("movementMode")) {
-        thePlayer.movementMode = options.movementMode;
-      }
+      // Add socket to the session it belongs to
+      const session = sessions.session(options.room);
+      await session.connectSocket(socket, options);
 
-
-				if(tryverify) {
-					thePlayer.verified = true;
-					thePlayer.skin = accounts[0].skins.selected;
-				}
-
-				
-				PlayerList.setPlayer(socket.id, thePlayer);
-				console.log("player joined -> " + socket.id);
-				socket.broadcast.emit("new", thePlayer);
-
-				var allPlayers = Object.values(PlayerList.players);
-				allPlayers = allPlayers.filter((player) => player.id != socket.id);
-
-				if (allPlayers && allPlayers.length > 0) socket.emit("players", allPlayers);
-				//TODO: Make coins emit only within range
-				socket.emit("coins", coins.filter((coin) => coin.inRange(thePlayer)));
-				socket.emit("chests", chests);
-
-				socket.joined = true;
-        socket.emit("levels", levels);
-
+      // Log to console
+      console.log(`Socket ${socket.id} joined room ${options.room}`);
 		}
+
+    // If options not sent, set as empty object 
+    if (options == undefined) {
+      options = {};
+    }
+
+    // Add name to options
+    options.name = r;
+
+    // Add tryverify to options
+    options.tryverify = tryverify
+
+    // Ban if captcha not sent
 		if (!captchatoken && recaptcha) {
 			socket.emit(
 				"ban",
@@ -659,28 +668,60 @@ io.on("connection", async (socket) => {
 			);
 			return socket.disconnect();
 		}
+
+    // Ban if not sent name
 		if (!r) {
 			socket.emit("ban", "You were kicked for not sending a name. ");
 			return socket.disconnect();
 		}
-		if (PlayerList.has(socket.id)) {
+
+    // Ban if player is already connected
+		if (socket.id in sockets) {
 			socket.emit(
 				"ban",
 				"You were kicked for 2 players on 1 id. Send this message to gautamgxtv@gmail.com<br> In the meantime, try restarting your computer if this happens a lot. "
 			);
 			return socket.disconnect();
 		}
-		//console.log(Object.values(PlayerList.players).length);
-		if (Object.values(PlayerList.players).length >= maxPlayers) {
-			socket.emit("ban", "Server is full. Please try again later.");
+
+    // If the room is undefined, assume it is the main room
+    if (!(room in options)) {
+      options.room = Sessions.MAIN_ROOM;
+    }
+
+    // Ban if session they want to join does not exist
+    // (currently there is no way to create new sessions, so this will ban if room is anything but [MAIN_ROOM_NAME])
+    if (!sessions.has(options.room)) {
+      socket.emit("ban", "Session you are trying to join does not exist");
+      return socket.disconnect();
+    }
+
+    // Ban if session is full
+		if (session.playerCount >= sessions.session(options.room).maxPlayers) {
+			socket.emit("ban", "Session is full. Please try again later.");
 			return socket.disconnect();
 		}
 
+    // Ban if too many players connected to server
+    if (Object.values(socketIds).length >= MAX_TOTAL_PLAYERS) {
+      socket.emit("ban", "Server is full. Please try again later");
+      return socket.disconnect();
+    }
+
+    // Ban if the password for the session is incorrect
+    if (options.room != Sessions.MAIN_ROOM) {
+      if (Sessions.isCorrectPassword(options.room, options.password)) {
+        socket.emit("ban", "Incorrect password for room")
+      }
+    }
+
+    // Do the captcha
 		var send = {
 			secret: process.env.CAPTCHASECRET,
 			response: captchatoken,
 			remoteip: socket.ip,
 		};
+
 		if(recaptcha) {
 			axios
 				.post(
@@ -689,6 +730,8 @@ io.on("connection", async (socket) => {
 				)
 				.then((f) => {
 					f = f.data;
+
+          // Ban if error during captcha
 					if (!f.success) {
 						socket.emit(
 							"ban",
@@ -697,6 +740,8 @@ io.on("connection", async (socket) => {
 						socket.disconnect();
 						return;
 					}
+
+          // Ban if captcha failed
 					if (f.score < 0.3) {
 						socket.emit(
 							"ban",
@@ -705,248 +750,101 @@ io.on("connection", async (socket) => {
 						socket.disconnect();
 						return;
 					}
+
+          // See the defination of ready function above
 					ready();
 				});
-		} else ready();
-	});
-
-  socket.on("evolve", (eclass) => {
-    if(!PlayerList.has(socket.id)) return socket.emit("refresh");
-    var player = PlayerList.getPlayer(socket.id);
-    if(player.evolutionQueue && player.evolutionQueue.length > 0 && player.evolutionQueue[0].includes(eclass.toLowerCase())) {
-      eclass = eclass.toLowerCase();
-      player.evolutionQueue.shift();
-      var evo = evolutions[eclass];
-      console.log(player.name + " evolved to " + eclass);
-          
-        player.evolutionData = {default: evo.default(), ability: evo.ability()};
-      player.evolution =evo.name;
-      player.updateValues();
-      socket.emit("refresh");
-      return;
+		} else {
+      ready();
     }
-  });
-  socket.on("ability", () => {
-    var player = PlayerList.getPlayer(socket.id);
-    if(!PlayerList.has(socket.id)) return socket.emit("refresh");
-    if(player.evolution != "") {
-      // check if ability activated already
-      if(player.ability <= Date.now()) {
-        player.ability = evolutions[player.evolution].abilityCooldown + evolutions[player.evolution].abilityDuration + Date.now();
-        console.log(player.name + " activated ability");
-        socket.emit("ability", [evolutions[player.evolution].abilityCooldown , evolutions[player.evolution].abilityDuration, Date.now()]);
-      }
-    }
-  });
-
-	socket.on("mousePos", (mousePos) => {
-		if (PlayerList.has(socket.id)) {
-			var thePlayer = PlayerList.getPlayer(socket.id);
-			thePlayer.mousePos = mousePos;
-			PlayerList.updatePlayer(thePlayer);
-     
-		}
-		else socket.emit("refresh");
-
-		//console.log(mousePos.x +" , "+mousePos.y )
-	});
-  
-	socket.on("mouseDown", (down) => {
-		if (PlayerList.has(socket.id)) {
-			var player = PlayerList.getPlayer(socket.id);
-			if (player.mouseDown == down) return;
-			[coins,chests] = player.down(down, coins, io, chests);
-			PlayerList.updatePlayer(player);
-		} else socket.emit("refresh");
 	});
 
-	socket.on("move", (controller) => {
-		if (!controller) return;
-		try {
-			if (PlayerList.has(socket.id)) {
-				var player = PlayerList.getPlayer(socket.id);
-				player.move(controller);
-				coins = player.collectCoins(coins, io, levels);
-			}
-		} catch (e) {
-			console.log(e);
-		}
-	});
-	socket.on( "ping", function ( fn ) {
-		fn(); // Simply execute the callback on the client
-	} );
-	socket.on("chat", (msg) => {
-		msg = msg.trim().replace(/\\/g, "\\\\");
-		if (msg.length > 0) {
-			if (msg.length > 35) msg = msg.substring(0, 35);
-			if (!PlayerList.has(socket.id) || Date.now() - PlayerList.getPlayer(socket.id).lastChat < 1000) return;
-			var p = PlayerList.getPlayer(socket.id);
-			p.lastChat = Date.now();
-			PlayerList.setPlayer(socket.id, p);
-			
-				io.sockets.emit("chat", {
-					msg: filter.clean(msg),
-					id: socket.id,
-				});
-			}
-		});
-	function clamp(num, min, max) {
-		return num <= min ? min : num >= max ? max : num;
-	}
-	socket.on("disconnect", () => {
-		if(serverState == "exiting") return;
-		if (!PlayerList.has(socket.id)) return;
-		var thePlayer = PlayerList.getPlayer(socket.id);
-
-              //drop their coins
-              var drop = [];
-              var dropAmount = clamp(Math.round(thePlayer.coins*0.8), 10, 20000);
-              var dropped = 0;
-              while (dropped < dropAmount) {
-                var r = thePlayer.radius * thePlayer.scale * Math.sqrt(Math.random());
-                var theta = Math.random() * 2 * Math.PI;
-                var x = thePlayer.pos.x + r * Math.cos(theta);
-                var y = thePlayer.pos.y + r * Math.sin(theta);
-                var remaining = dropAmount - dropped;
-                var value = remaining > 50 ? 50 : (remaining > 10 ? 10 : (remaining > 5 ? 5 : 1));
-
-                coins.push(
-                  new Coin({
-                    x: clamp(x, -(map/2), map/2),
-                    y: clamp(y, -(map/2), map/2),
-                  },value)
-                );
-                dropped += value;
-                drop.push(coins[coins.length - 1]);
-              }
-
-                io.sockets.emit("coin", drop, [thePlayer.pos.x, thePlayer.pos.y]);
-								
-              
-
-		sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${thePlayer.name}, ${thePlayer.coins}, ${thePlayer.kills}, ${Date.now() - thePlayer.joinTime}, ${thePlayer.verified})`;
-
-		PlayerList.deletePlayer(socket.id);
-		socket.broadcast.emit("playerLeave", socket.id);
-	});
+  // The ping socket connection :)
+  socket.on( "ping", function ( fn ) {
+    fn(); // Simply execute the callback on the client
+  } );
 });
 
-//tick
+
+/***********************************************/
+/* Tick ****************************************/
+/***********************************************/
+
+// The last second that was surpassed, used for computing tps
 var secondStart = Date.now();
-var lastChestSend = Date.now();
-var lastCoinSend = Date.now();
+
+// The counter for ticks per second
+// increamented every time a tick runs
 var tps = 0;
+
+// The actual ticks per second, hold the last tps value that was valid
+// (This is used because the tps variable is used for calculating the ticks per second)
 var actps = 0;
-app.get("/api/serverinfo", (req, res) => {
-  var playerCount = Object.values(PlayerList.players).length;
-  var lag = actps > 15 ? "No lag" : actps > 6 ? "Moderate lag" : "Extreme lag";
+
+// app/api/serverinfo leads to a json of stats
+app.get("/api/serverinfo/:room", (req, res) => {
+  // Get the session that corresponds with the room passed
+  var session = sessions.session(req.params.room || Sessions.MAIN_ROOM)
+  
+  // Send the stats
   res.send({
-    playerCount,
-    lag,
-    maxPlayers,
+    playerCount: session.totalPlayerCount(),
+    lag: actps > 15 ? "No lag" : actps > 6 ? "Moderate lag" : "Extreme lag",
+    maxPlayers: maxPlayers,
     tps: actps,
-    actualPlayercount: Object.values(PlayerList.players).filter((p) => !p.ai)
-      .length,
+    realPlayerCount: session.realPlayerCount(),
+    aiPlayerCount: session.aiPlayerCount()
   });
 });
 
+// TODO figure out what needs to go to tick
+// TODO: fix player and ai player libs to work with session thing
+
+// 30 times per second do this (1000 / 30 ms)
 setInterval(async () => {
 	//const used = process.memoryUsage().heapUsed / 1024 / 1024;
 //console.log(`The script uses approximately ${Math.round(used * 100) / 100} MB`);
-	PlayerList.clean();
+
+  // Set the mod io to io???? (idk why this is here)
 	moderation.io = io;
-	if (coins.length < maxCoins) {
-		coins.push(new Coin());
-		io.sockets.emit("coin", coins[coins.length - 1]);
-	}
-	if(chests.length < maxChests) {
-		chests.push(new Chest());
-		io.sockets.emit("chest", chests[chests.length - 1]);
-	}
-	var normalPlayers = Object.values(PlayerList.players).filter(p => p && !p.ai).length;
-	var aiPlayers = Object.keys(PlayerList.players).length;
-  
-	// console.log(aiNeeded)
 
-
-	if (normalPlayers > 0 && aiPlayers < maxAiPlayers && getRandomInt(0,100) == 5) {
-		var id = uuidv4();
-		var theAi = new AiPlayer(id);
-		console.log("AI Player Joined -> "+theAi.name);
-		PlayerList.setPlayer(id, theAi);
-		io.sockets.emit("new", theAi);
-	}
-	//emit tps to clients
+	// If its been one second since lst calculating the tps
 	if (Date.now() - secondStart >= 1000) {
+    // Emit ticks per second
 		io.sockets.emit("tps", tps);
+
+    // Update the actual ticks per second varaible
 		actps = tps;
 		//console.log("Players: "+Object.keys(players).length+"\nTPS: "+tps+"\n")
+
+    // Update when the tps was last calculated
 		secondStart = Date.now();
+
+    // Restart the tps counter
 		tps = 0;
 	}
-	if (Date.now() - lastChestSend >= 10000) {
-		io.sockets.emit("chests", chests);
 
-		lastChestSend = Date.now();
-	}
+  Sessions.forEachSession(session => {
+    session.tick()
+  })
 
-	//health regen
-	var playersarray = Object.values(PlayerList.players);
-	var sockets = await io.fetchSockets();
-
-	sockets.forEach((b) => {
-		if (!b.joined && Date.now() - b.joinTime > 10000) {
-			b.emit(
-				"ban",
-				"You have been kicked for not sending JOIN packet. <br>This is likely due to slow wifi.<br>If this keeps happening, try restarting your device."
-			);
-			b.disconnect();
-		}
-	});
-
-	playersarray.forEach((player) => {
-    
-		if(player) {
-      player.updateValues();
-			//   player.moveWithMouse(players)
-			if(player.ai) {
-				[coins,chests] = player.tick(coins, io, levels, chests);
-			}
-			if (
-				Date.now() - player.lastHit > player.healWait &&
-      Date.now() - player.lastRegen > 75 &&
-      player.health < player.maxHealth
-			) {
-				//if its been x seconds since player got hit, regen then every 100 ms
-				player.lastRegen = Date.now();
-				player.health += (player.health / 100)*player.healAmount;
-			}
-			PlayerList.updatePlayer(player);
-
-			//emit player data to all clients
-			sockets.forEach((socket) => {
-				if(!player.getSendObj()) console.log("gg");
-				if (player.id != socket.id) socket.emit("player", player.getSendObj());
-				else {
-					socket.emit("me", player);
-				if(Date.now() - lastCoinSend >= 1000) {
-					socket.emit("coins", coins.filter((coin) => coin.inRange(player)));
-				}
-				}
-			});
-		}
-	});
-	if(Date.now() - lastCoinSend >= 1000) {
-		lastCoinSend = Date.now();
-	}
+  // Increment tps for calculation
 	tps += 1;
 }, 1000 / 30);
 
+/***********************************************/
+/* Technical Stuff 😨 *************************/
+/***********************************************/
+
+// Start the server and listen on the port in the .env
+// If the port is not in the .env, then use 3000
 server.listen(process.env.PORT || 3000, () => {
   console.log("server started");
 });
 
+// When the code is told to stop
 process.on("SIGTERM", () => {
+  // Do a clean exit
   cleanExit()
     .then(() => {
       console.log("exited cleanly");
@@ -957,7 +855,10 @@ process.on("SIGTERM", () => {
       process.exit(1);
     });
 });
+
+// When ctrl-C is pressed in terminal
 process.on("SIGINT", () => {
+  // Do a clean exit
   cleanExit()
     .then(() => {
       console.log("exited cleanly");
@@ -968,7 +869,8 @@ process.on("SIGINT", () => {
       process.exit(1);
     });
 });
-//unhandledRejection
+
+// When there is a an unhandled rejection
 process.on("unhandledRejection", (reason, p) => {
   console.log("Unhandled Rejection at: Promise", p, "reason:", reason);
   cleanExit()
@@ -982,16 +884,28 @@ process.on("unhandledRejection", (reason, p) => {
     });
 });
 
+// Cleanly exit
 async function cleanExit() {
   console.log("exiting cleanly...");
+
+  // Set the server state to exiting
+  // This will make it so players leaving are ignored
   serverState = "exiting";
 
+  // Get all the sockets
   var sockets = await io.fetchSockets();
 
+  // For each player
   for (var player of Object.values(PlayerList.players)) {
+    // If the player is a real player
     if (player && !player.ai) {
+
+      // Get the socket that corresponds with the player
       var socket = sockets.find((s) => s.id == player.id);
+
+      // If there is a socket that corresponds
       if (socket) {
+        // Ban the player or being in the server when it was closing ;(
         socket.emit(
           "ban",
           "<h1>Server is shutting down, we'll be right back!<br>Sorry for the inconvenience.<br><br>" +
@@ -1001,6 +915,8 @@ async function cleanExit() {
             "</h1><hr>"
         );
         socket.disconnect();
+
+        // Save the player stats
         await sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${
           player.name
         }, ${player.coins}, ${player.kills}, ${Date.now() - player.joinTime}, ${

@@ -1,15 +1,23 @@
+/*
+Player class
+Runs the player
+*/
+
 var intersects = require("intersects");
-const PlayerList = require("./PlayerList");
+const PlayerList = require("./Players");
 const Coin = require("./Coin.js");
 const {sql} = require("../database");
+const GameObject = require("./SessionObject")
+
+
 function getRandomInt(min, max) {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 var map = 10000;
 const evolutions = require("./evolutions");
 
-class Player { 
-  constructor(id, name) {
+class Player extends GameObject { 
+  constructor(id, name, game) {
     this.ai = false;
     this.movementMode = "mouse";
     this.id = id;
@@ -38,7 +46,7 @@ class Player {
     this.ability = 0;
     this.abilityActive = false;
     
-   this.skin = "player";
+    this.skin = "player";
     this.levelScale = 0.25;
 
     this.resistance = 20;
@@ -55,7 +63,10 @@ class Player {
     this.size = 300;
     this.radius = this.size / 2;
     this.lastMove = Date.now();
+
+    super(game)
   }
+
   moveWithMouse() {
 
   if(Date.now() - this.lastMove > 5000) this.lastMove = (Date.now() - 1000); 
@@ -301,6 +312,7 @@ return false;
   calcSwordAngle() {
     return Math.atan2(this.mousePos.y - (this.mousePos.viewport.height / 2), this.mousePos.x - (this.mousePos.viewport.width / 2)) * 180 / Math.PI + 45;
   }
+  
   updateValues() {
     const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
     const convert = (num, val, newNum) => (newNum * val) / num;
