@@ -73,9 +73,10 @@ const Player = require("./classes/Player");
 const Coin = require("./classes/Coin");
 const Chest = require("./classes/Chest");
 const AiPlayer = require("./classes/AiPlayer");
-const PlayerList = require("./classes/PlayerList");
+const PlayerList = require("./classes/Players");
 const Session = require("./classes/Session");
 const evolutions = require("./classes/evolutions")
+const Sessions = require("./classes/Sessions");
 const { sql } = require("./database");
 const { config } = require("dotenv");
 
@@ -121,22 +122,6 @@ app.use((req, res, next) => {
   next();
 });*/
 
-// Get the levels
-const levels = JSON.parse(fs.readFileSync("./levels.json")).map((level, index, array) => {
-  // Set start
-  if(index == 0) {
-		Object.assign({start: 0}, level);
-	} else {
-		Object.assign({start: array[index - 1].coins}, level);
-	}
-
-  // Replace evolution string with evolution class
-  if ("evolution" in level) {
-    level.evolution = evolutions[level.evolution];
-  }
-
-  return level;
-})
 
 // Get moderation for app
 moderation.start(app);
@@ -480,9 +465,6 @@ app.get("/skins", async (req, res) => {
 });
 
 app.get("/shop", async (req, res) => {
-  //read cosmetics.json
-  var cosmetics = JSON.parse(fs.readFileSync("./cosmetics.json"));
-
   //get user data
   var secret = req.query.secret;
   var acc;
@@ -628,13 +610,15 @@ Object.filter = (obj, predicate) =>
 /* Socket Connections ****************************************************************************/
 /*************************************************************************************************/
 
+// Max number of players allowed to connect to server (arbitrary for now)
+const MAX_TOTAL_PLAYERS = 1000;
+
 // Create a new session of the game
-var session = new Session({
-  maxCoins: 2000,
-  maxChests: 20,
-  maxAiPlayers: 0,
-  maxPlayers: 50
-})
+var sessions = new Sessions();
+
+// Holds all sockets connected to the server and which room they are in
+// {socketId: room}
+socketIds = {};
 
 // When the socket connects
 io.on("connection", async (socket) => {
@@ -655,63 +639,27 @@ io.on("connection", async (socket) => {
   socket.on("go", async (r, captchatoken, tryverify, options) => {
     // When the sanity checks are passed, this function will run
     async function ready() {
-      // Clean the name
-      var name;
-      if (!tryverify) {
-        try {
-          name = filter.clean(r.substring(0, 16));
-        } catch (e) {
-          name = r.substring(0, 16);
-        }
-      } else {
-        var accounts = await sql`select * from accounts where secret=${r}`;
-        if (!accounts[0]) {
-          socket.emit(
-            "ban",
-            "Invalid secret, please try logging out and relogging in"
-          );
-          socket.disconnect();
-          return;
-        }
-        var name = accounts[0].username;
-      }
+      // Add socket to sockets
+      sockets[socket.id] = socket;
 
-      // Create the player and get it ready
-      var thePlayer = new Player(socket.id, name);
-      thePlayer.updateValues();
-      if (options && options.hasOwnProperty("movementMode")) {
-        thePlayer.movementMode = options.movementMode;
-      }
-      if(tryverify) {
-        thePlayer.verified = true;
-        thePlayer.skin = accounts[0].skins.selected;
-      }
+      // Add socket to the session it belongs to
+      const session = sessions.session(options.room);
+      await session.connectSocket(socket, options);
 
-      // Add the player to the session
-      session.playerList.setPlayer(socket.id, thePlayer);
-      console.log("player joined -> " + socket.id);
-
-      // Emit the new player
-      socket.broadcast.emit("new", thePlayer);
-
-      // Emit the rest of the players
-      var allPlayers = Object.values(PlayerList.players);
-      allOtherPlayers = allPlayers.filter((player) => player.id != socket.id);
-      if (allPlayers && allPlayers.length > 0) socket.emit("players", allPlayers);
-
-      //TODO: Make coins emit only within range (not sure if this is done ill just leave this)
-      // Emit the coins
-      socket.emit("coins", coins.filter((coin) => coin.inRange(thePlayer)));
-
-      // Emit the chests
-      socket.emit("chests", chests);
-
-      // Emit the levels
-      socket.emit("levels", levels);
-
-      // Set that the socket is joined
-      socket.joined = true;
+      // Log to console
+      console.log(`Socket ${socket.id} joined room ${options.room}`);
 		}
+
+    // If options not sent, set as empty object 
+    if (options == undefined) {
+      options = {};
+    }
+
+    // Add name to options
+    options.name = r;
+
+    // Add tryverify to options
+    options.tryverify = tryverify
 
     // Ban if captcha not sent
 		if (!captchatoken && recaptcha) {
@@ -729,19 +677,44 @@ io.on("connection", async (socket) => {
 		}
 
     // Ban if player is already connected
-		if (PlayerList.has(socket.id)) {
+		if (socket.id in sockets) {
 			socket.emit(
 				"ban",
 				"You were kicked for 2 players on 1 id. Send this message to gautamgxtv@gmail.com<br> In the meantime, try restarting your computer if this happens a lot. "
 			);
 			return socket.disconnect();
 		}
-		
-    // Ban if server is full
-		if (Object.values(PlayerList.players).length >= maxPlayers) {
-			socket.emit("ban", "Server is full. Please try again later.");
+
+    // If the room is undefined, assume it is the main room
+    if (!(room in options)) {
+      options.room = Sessions.MAIN_ROOM;
+    }
+
+    // Ban if session they want to join does not exist
+    // (currently there is no way to create new sessions, so this will ban if room is anything but [MAIN_ROOM_NAME])
+    if (!sessions.has(options.room)) {
+      socket.emit("ban", "Session you are trying to join does not exist");
+      return socket.disconnect();
+    }
+
+    // Ban if session is full
+		if (session.playerCount >= sessions.session(options.room).maxPlayers) {
+			socket.emit("ban", "Session is full. Please try again later.");
 			return socket.disconnect();
 		}
+
+    // Ban if too many players connected to server
+    if (Object.values(socketIds).length >= MAX_TOTAL_PLAYERS) {
+      socket.emit("ban", "Server is full. Please try again later");
+      return socket.disconnect();
+    }
+
+    // Ban if the password for the session is incorrect
+    if (options.room != Sessions.MAIN_ROOM) {
+      if (Sessions.isCorrectPassword(options.room, options.password)) {
+        socket.emit("ban", "Incorrect password for room")
+      }
+    }
 
     // Do the captcha
 		var send = {
@@ -784,164 +757,15 @@ io.on("connection", async (socket) => {
 				});
 		} else {
       // If no recaptcha, skip it
+      // See the defination of ready function above
       ready();
     }
 	});
 
-  // When the player wants to evolve
-  socket.on("evolve", (eclass) => {
-    // If player is not in player list, return
-    if(!PlayerList.has(socket.id)) return socket.emit("refresh");
-
-    // Get the player
-    var player = PlayerList.getPlayer(socket.id);
-
-    // Some more sanity checks and then do the evolution
-    if(player.evolutionQueue && player.evolutionQueue.length > 0 && player.evolutionQueue[0].includes(eclass.toLowerCase())) {
-      eclass = eclass.toLowerCase();
-      player.evolutionQueue.shift();
-      var evo = evolutions[eclass];
-      console.log(player.name + " evolved to " + eclass);
-          
-      player.evolutionData = {default: evo.default(), ability: evo.ability()};
-      player.evolution =evo.name;
-      player.skin = evo.name;
-      player.updateValues();
-      socket.emit("refresh");
-      return;
-    }
-  });
-
-  // When the player want to use an ability
-  socket.on("ability", () => {
-    // Get the player
-    var player = PlayerList.getPlayer(socket.id);
-
-    // If the player has an evolution
-    if(player.evolution != "") {
-      // check if ability activated already
-      if(player.ability <= Date.now()) {
-        // Activate ability
-        player.ability = evolutions[player.evolution].abilityCooldown + evolutions[player.evolution].abilityDuration + Date.now();
-        console.log(player.name + " activated ability");
-        socket.emit("ability", [evolutions[player.evolution].abilityCooldown , evolutions[player.evolution].abilityDuration, Date.now()]);
-      }
-    }
-  });
-
-  // When the player has a new mousePos
-	socket.on("mousePos", (mousePos) => {
-		if (PlayerList.has(socket.id)) {
-			var thePlayer = PlayerList.getPlayer(socket.id);
-			thePlayer.mousePos = mousePos;
-			PlayerList.updatePlayer(thePlayer);
-     
-		}
-		else socket.emit("refresh");
-
-		//console.log(mousePos.x +" , "+mousePos.y )
-	});
-  
-  //  When the players mouse is down or up
-	socket.on("mouseDown", (down) => {
-		if (PlayerList.has(socket.id)) {
-			var player = PlayerList.getPlayer(socket.id);
-			if (player.mouseDown == down) return;
-			[coins,chests] = player.down(down, coins, io, chests);
-			PlayerList.updatePlayer(player);
-		} else socket.emit("refresh");
-	});
-
-  // 
-	socket.on("move", (controller) => {
-		if (!controller) return;
-		try {
-			if (PlayerList.has(socket.id)) {
-				var player = PlayerList.getPlayer(socket.id);
-				player.move(controller);
-				coins = player.collectCoins(coins, io, levels);
-			}
-		} catch (e) {
-			console.log(e);
-		}
-	});
-	socket.on( "ping", function ( fn ) {
-		fn(); // Simply execute the callback on the client
-	} );
-
-  // When a player wants to chat
-	socket.on("chat", (msg) => {
-		msg = msg.trim().replace(/\\/g, "\\\\");
-		if (msg.length > 0) {
-      /// Trim the message
-			if (msg.length > 35) msg = msg.substring(0, 35);
-
-      // Sanity checks
-			if (!PlayerList.has(socket.id) || Date.now() - PlayerList.getPlayer(socket.id).lastChat < 1000) return;
-
-      // Set the last chat time
-			var p = PlayerList.getPlayer(socket.id);
-			p.lastChat = Date.now();
-			// PlayerList.setPlayer(socket.id, p); I dont think this needs to be uncommented
-			
-      // Emit chat
-      io.sockets.emit("chat", {
-        msg: filter.clean(msg),
-        id: socket.id,
-      });
-		}
-	});
-
-  // Def should put this in util
-	function clamp(num, min, max) {
-		return num <= min ? min : num >= max ? max : num;
-	}
-
-  // When the player wants to leave
-	socket.on("disconnect", () => {
-    // If the server is shutting down ignore this
-		if(serverState == "exiting") return;
-
-    // Sanity checks
-		if (!PlayerList.has(socket.id)) return;
-
-    // Get the player
-		var thePlayer = PlayerList.getPlayer(socket.id);
-
-    //drop their coins randomly near them
-    var drop = [];
-    var dropAmount = clamp(Math.round(thePlayer.coins*0.8), 10, 20000);
-    var dropped = 0;
-    while (dropped < dropAmount) {
-      var r = thePlayer.radius * thePlayer.scale * Math.sqrt(Math.random());
-      var theta = Math.random() * 2 * Math.PI;
-      var x = thePlayer.pos.x + r * Math.cos(theta);
-      var y = thePlayer.pos.y + r * Math.sin(theta);
-      var remaining = dropAmount - dropped;
-      var value = remaining > 50 ? 50 : (remaining > 10 ? 10 : (remaining > 5 ? 5 : 1));
-
-      coins.push(
-        new Coin({
-          x: clamp(x, -(map/2), map/2),
-          y: clamp(y, -(map/2), map/2),
-        }, value)
-      );
-
-      dropped += value;
-      drop.push(coins[coins.length - 1]);
-    }
-
-    // Emit the new coins
-    io.sockets.emit("coin", drop, [thePlayer.pos.x, thePlayer.pos.y]);    
-
-		sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${thePlayer.name}, ${thePlayer.coins}, ${thePlayer.kills}, ${Date.now() - thePlayer.joinTime}, ${thePlayer.verified})`;
-
-    // Delete the player
-		PlayerList.deletePlayer(socket.id);
-
-    // Emit the player left
-		socket.broadcast.emit("playerLeave", socket.id);
-	});
+  // The ping socket connection :)
+  socket.on( "ping", function ( fn ) {
+    fn(); // Simply execute the callback on the client
+  } );
 });
 
 
@@ -952,11 +776,6 @@ io.on("connection", async (socket) => {
 // The last second that was surpassed, used for computing tps
 var secondStart = Date.now();
 
-// The last time that the server sent out a PSA about where all the chests and coins are
-// For some reason the server does this every 10 seconds
-var lastChestSend = Date.now();
-var lastCoinSend = Date.now();
-
 // The counter for ticks per second
 // increamented every time a tick runs
 var tps = 0;
@@ -966,59 +785,31 @@ var tps = 0;
 var actps = 0;
 
 // app/api/serverinfo leads to a json of stats
-app.get("/api/serverinfo", (req, res) => {
-  var playerCount = Object.values(PlayerList.players).length;
-  var lag = actps > 15 ? "No lag" : actps > 6 ? "Moderate lag" : "Extreme lag";
+app.get("/api/serverinfo/:room", (req, res) => {
+  // Get the session that corresponds with the room passed
+  var session = sessions.session(req.params.room || Sessions.MAIN_ROOM)
+  
+  // Send the stats
   res.send({
-    playerCount,
-    lag,
-    maxPlayers,
+    playerCount: session.totalPlayerCount(),
+    lag: actps > 15 ? "No lag" : actps > 6 ? "Moderate lag" : "Extreme lag",
+    maxPlayers: maxPlayers,
     tps: actps,
-    actualPlayercount: Object.values(PlayerList.players).filter((p) => !p.ai)
-      .length,
+    realPlayerCount: session.realPlayerCount(),
+    aiPlayerCount: session.aiPlayerCount()
   });
 });
+
+// TODO figure out what needs to go to tick
+// TODO: fix player and ai player libs to work with session thing
 
 // 30 times per second do this (1000 / 30 ms)
 setInterval(async () => {
 	//const used = process.memoryUsage().heapUsed / 1024 / 1024;
 //console.log(`The script uses approximately ${Math.round(used * 100) / 100} MB`);
 
-  // clean up the playerlist
-	PlayerList.clean();
-
   // Set the mod io to io???? (idk why this is here)
 	moderation.io = io;
-
-  // Add a new coin if the maxCoins are not reached
-	if (coins.length < maxCoins) {
-		coins.push(new Coin());
-		io.sockets.emit("coin", coins[coins.length - 1]);
-	}
-
-  // Add a new chest if the maxChests are not reached
-	if(chests.length < maxChests) {
-		chests.push(new Chest());
-		io.sockets.emit("chest", chests[chests.length - 1]);
-	}
-
-  // TODO: just create methods from these, much more readable
-	var normalPlayers = Object.values(PlayerList.players).filter(p => p && !p.ai).length;
-	var aiPlayers = Object.keys(PlayerList.players).length;
-
-  // Add a new ai player if there are real players and a random condition is met
-	if (normalPlayers > 0 && aiPlayers < maxAiPlayers && getRandomInt(0,100) == 5) {
-    // Create the ai player
-		var id = uuidv4();
-		var theAi = new AiPlayer(id);
-		console.log("AI Player Joined -> "+theAi.name);
-
-    // Add it to the list
-		PlayerList.setPlayer(id, theAi);
-
-    // Emit a new player
-		io.sockets.emit("new", theAi);
-	}
 
 	// If its been one second since lst calculating the tps
 	if (Date.now() - secondStart >= 1000) {
@@ -1036,93 +827,17 @@ setInterval(async () => {
 		tps = 0;
 	}
 
-  // If its been 10 seconds since the last chest PSA
-	if (Date.now() - lastChestSend >= 10000) {
-    // Emit the chests
-		io.sockets.emit("chests", chests);
-
-    // Update the last time it happened
-		lastChestSend = Date.now();
-	}
-
-  // Get all the sockets
-	var sockets = await io.fetchSockets();
-
-  // Check for join packets and kick if one is not sent
-	sockets.forEach((b) => {
-		if (!b.joined && Date.now() - b.joinTime > 10000) {
-			b.emit(
-				"ban",
-				"You have been kicked for not sending JOIN packet. <br>This is likely due to slow wifi.<br>If this keeps happening, try restarting your device."
-			);
-			b.disconnect();
-		}
-	});
-
-  // Health regen
-  var playersarray = Object.values(PlayerList.players);
-	playersarray.forEach((player) => {
-		if (player) {
-      // Update the player values
-      player.updateValues()
-			//   player.moveWithMouse(players)
-
-      // Tick ai players
-			if(player.ai) {
-				[coins, chests] = player.tick(coins, io, levels, chests);
-			}
-
-      // if its been x seconds since player got hit, regen then every 100 ms
-			if (
-				Date.now() - player.lastHit > player.healWait &&
-        Date.now() - player.lastRegen > 75 &&
-        player.health < player.maxHealth
-			) {
-				// Heal ❤️
-				player.lastRegen = Date.now();
-				player.health += (player.health / 100)*player.healAmount;
-			}
-
-      // Might be unessicary
-      // Not sure
-      // But this updates the player in the playerList
-			PlayerList.updatePlayer(player);
-
-			//emit player data to all clients
-      // Keeping in mind this is in a loop over all the players
-      // So it goes
-      // for player in players:
-      //   for socket in sockets:
-      //     *function below*
-			sockets.forEach((socket) => {
-        // If the player does not have a send object, well, ig its over so gg
-				if (!player.getSendObj()) console.log("gg");
-
-        // If the socket does not correspond with the player
-				if (player.id != socket.id) {
-          // Emit "player" with the send object
-          socket.emit("player", player.getSendObj());
-        } else { // If the socket corresponds with the player
-          // emit "me" with the player (NOT the send object)
-					socket.emit("me", player);
-          // If its been a second since the last coin send
-          if(Date.now() - lastCoinSend >= 1000) {
-            // Emit the coins the are next to the player
-            socket.emit("coins", coins.filter((coin) => coin.inRange(player)));
-          }
-				}
-			});
-		}
-	});
-
-  // reset the time when the last coin send was
-	if(Date.now() - lastCoinSend >= 1000) {
-		lastCoinSend = Date.now();
-	}
+  Sessions.forEachSession(session => {
+    session.tick()
+  })
 
   // Increment tps for calculation
 	tps += 1;
 }, 1000 / 30);
+
+/***********************************************/
+/* Technical Stuff 😨 *************************/
+/***********************************************/
 
 // Start the server and listen on the port in the .env
 // If the port is not in the .env, then use 3000
