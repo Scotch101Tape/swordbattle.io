@@ -4,8 +4,8 @@ Holds the sessions and provides convenient methods
 */
 
 // Modules
-const Session = require("./Session")
-const evolutions = require("./evolutions")
+const Session = require("./Session");
+const evolutions = require("./evolutions");
 
 // Do some modifaction to the levels
 const levels = require("../levels.json").map((level, index, array) => {
@@ -22,23 +22,23 @@ const levels = require("../levels.json").map((level, index, array) => {
   }
 
   return level;
-})
+});
 
 class Sessions {
   // The name of the main room
-  MAIN_ROOM = "main"
+  static MAIN_ROOM = "main";
 
   // The amount of time a session can be without players before it is removed (in ms)
-  NO_PLAYER_TIME_LIMIT = 30 * 1000
+  static NO_PLAYER_TIME_LIMIT = 30 * 1000;
 
   constructor(io) {
     // The main room is always created
 
     // Maps room to password
-    this.passwords = {}
+    this.passwords = {};
 
     // Maps room to last time they had players
-    this.lastHadPlayers = {}
+    this.lastHadPlayers = {};
 
     // Maps room to session
     this.sessions = {
@@ -49,38 +49,41 @@ class Sessions {
           maxPlayers: 50,
           levels: levels
       })
-    }
+    };
 
-    this.io = io
+    console.log(Sessions.MAIN_ROOM);
+
+    // The io instance
+    this.io = io;
   }
 
   // Adds a session with the password
   addSession(session, password) {
     // A session CANNOT be named the same as the main room
-    console.assert(session.room != Sessions.MAIN_ROOM, `A session cannot have the room name of ${Sessions.MAIN_ROOM}`)
+    console.assert(session.room != Sessions.MAIN_ROOM, `A session cannot have the room name of ${Sessions.MAIN_ROOM}`);
 
-    this.passwords[session.room] = password
-    this.sessions[session.room] = session
-    this.lastHadPlayers[session.room] = Date.now()
+    this.passwords[session.room] = password;
+    this.sessions[session.room] = session;
+    this.lastHadPlayers[session.room] = Date.now();
   }
 
   // Removes a session
   removeSession(session) {
-    session.cleanup()
+    session.cleanup();
 
-    delete this.sessions[session]
-    delete this.passwords[session]
-    delete this.lastHadPlayers[session]
+    delete this.sessions[session];
+    delete this.passwords[session];
+    delete this.lastHadPlayers[session];
   }
 
   // Performs a funciton on each session
   forEachSession(f) {
-    Object.values(this.sessions).forEach(f)
+    Object.values(this.sessions).forEach(f);
   }
 
   // Returns whether the password is correct for the room
   isCorrectPassword(room, password) {
-    return this.passwords[room] == password
+    return this.passwords[room] == password;
   }
 
   // Removes any sessions with zero players for more than the time limit
@@ -90,22 +93,44 @@ class Sessions {
       if (session.realPlayerCount == 0 && session.status != Session.Status.Entering) {
         // If the session has had no players for NO_PLAYER_TIME_LIMIT then remove the session
         if (Date.now() - this.lastHadPlayers[session.room] > Sessions.NO_PLAYER_TIME_LIMIT) {
-          this.removeSession(session)
+          this.removeSession(session);
         }
       } else {
         this.lastHadPlayers[session.room] = Date.now();
       }
-    })
+    });
   }
 
   // Returns whether the session 
   has(room) {
-    return room in this.sessions
+    return room in this.sessions;
   }
 
+  // Returns the session that corresponds with room 
   session(room) {
-    return this.session[room]
+    return this.sessions[room];
+  }
+
+  // Returns all the players in all the sessions
+  allPlayers() {
+    var allPlayers = [];
+
+    for (const session of Object.values(this.sessions)) {
+      for (const player of session.players.asList()) {
+        allPlayers.push(player);
+      }
+    }
+
+    return allPlayers;
+  }
+
+  allSockets() {
+    var sockets = [];
+    for (const player of this.allPlayers()) {
+      sockets.push(player.socket);
+    }
+    return sockets;
   }
 }
 
-module.exports = Sessions
+module.exports = Sessions;

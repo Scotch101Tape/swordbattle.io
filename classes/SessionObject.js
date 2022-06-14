@@ -5,9 +5,9 @@ This allows for miminal changes to the code from how it was oringinally written 
 */
 
 class SessionObject {
-  constructor(game) {
-    this.game = game
+  constructor(session) {
+    this.session = session;
   }
 }
 
-module.exports = SessionObject
+module.exports = SessionObject;

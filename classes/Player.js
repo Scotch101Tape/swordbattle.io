@@ -4,10 +4,9 @@ Runs the player
 */
 
 var intersects = require("intersects");
-const PlayerList = require("./Players");
 const Coin = require("./Coin.js");
 const {sql} = require("../database");
-const GameObject = require("./SessionObject")
+const SessionObject = require("./SessionObject");
 
 
 function getRandomInt(min, max) {
@@ -16,11 +15,13 @@ function getRandomInt(min, max) {
 var map = 10000;
 const evolutions = require("./evolutions");
 
-class Player extends GameObject { 
-  constructor(id, name, game) {
+class Player extends SessionObject { 
+  constructor(socket, name, session) {
+    super(session);
+
     this.ai = false;
     this.movementMode = "mouse";
-    this.id = id;
+    this.id = socket.id;
     this.name = name;
     this.health = 100;
     this.coins = 0;
@@ -64,7 +65,7 @@ class Player extends GameObject {
     this.radius = this.size / 2;
     this.lastMove = Date.now();
 
-    super(game)
+    this.socket = socket;
   }
 
   moveWithMouse() {
@@ -135,7 +136,6 @@ go *= power/100;
                     : -90;
     }
 
-    var players = Object.values(PlayerList.players);
   //  console.log(this.id+" => ("+this.pos.x+", "+this.pos.y+")")
   if(Date.now() - this.lastMove > 5000) this.lastMove = (Date.now() - 1000); 
     var since =( Date.now() - this.lastMove ) / 1000;
@@ -202,7 +202,7 @@ var move = true;
    // console.log(players.filter(player=> player.id != this.id && player.touchingPlayer(this)))
 
       var times = 0;
-      while (players.filter(player=> player && player.id != this.id && player.touchingPlayer(this)).length > 0 && times <10) {
+      while (this.session.players.asList().filter(player=> player && player.id != this.id && player.touchingPlayer(this)).length > 0 && times <10) {
       times++;
         var p = this.movePointAtAngle([this.pos.x, this.pos.y], (moveAngle)*180/Math.PI , go==0?this.speed/10:go);
       this.pos.x = p[0];
@@ -211,7 +211,7 @@ var move = true;
     
 
     this.lastMove = Date.now();
-    PlayerList.updatePlayer(this);
+    // USED TO BE AN UPDATE PLAYER HERE, DONT THINK IT NEEDS TO BE HERE
   }
   movePointAtAngle(point, angle, distance) {
     return [
@@ -356,9 +356,9 @@ return false;
         const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
     if (this.mouseDown && Date.now() - this.lastSwing > this.damageCooldown) {
       this.lastSwing = Date.now();
-      Object.values(PlayerList.players).forEach((enemy) => {
+      this.session.players.asList().forEach((enemy) => {
         //loop through all enemies, make sure the enemy isnt the player itself
-        if (enemy && enemy.id != this.id && !PlayerList.deadPlayers.includes(enemy.id)) {
+        if (enemy && enemy.id != this.id && !this.session.players.deadPlayers.includes(enemy.id)) {
           //get the values needed for line-circle-collison
           //check if enemy and player colliding
           if (
@@ -371,11 +371,11 @@ return false;
 
             if(this.ai) {
               this.target = this.getClosestEntity(this.getEntities(coins));
-              PlayerList.updatePlayer(this);
+              // this.session.players.updatePlayer(this);
             } 
             if(enemy.ai) {
               enemy.target = enemy.getClosestEntity(coins);
-            PlayerList.updatePlayer(enemy);
+              // this.session.players.updatePlayer(enemy);
             } 
 
 
@@ -389,7 +389,7 @@ return false;
               if(!this.ai && socket) socket.emit("dealHit", enemy.id);
               if(!enemy.ai && socketById) socketById.emit("takeHit", this.id);
               //enemy has 0 or less than 0 health, time to kill
-            if(!enemy.ai) sql`INSERT INTO games (name, coins, kills, time, verified, killedby, killerverified) VALUES (${enemy.name}, ${enemy.coins}, ${enemy.kills}, ${Date.now() - enemy.joinTime}, ${enemy.verified}, ${this.name}, ${this.verified})`;
+            if(!enemy.ai && this.session.connectedToDatabase) sql`INSERT INTO games (name, coins, kills, time, verified, killedby, killerverified) VALUES (${enemy.name}, ${enemy.coins}, ${enemy.kills}, ${Date.now() - enemy.joinTime}, ${enemy.verified}, ${this.name}, ${this.verified})`;
 
               //increment killcount by 1
               this.kills += 1;
@@ -442,7 +442,7 @@ return false;
               console.log(this.name+" killed " + enemy.name);
 
               //delete the enemy
-              PlayerList.deletePlayer(enemy.id);
+              this.session.players.deletePlayer(enemy.id);
 
               //disconnect the socket
             // if(!enemy.ai && socketById) socketById.disconnect();
@@ -502,6 +502,13 @@ return false;
 
   getSendObj() {
     return {skin: this.skin, abilityActive: this.abilityActive, evolution: this.evolution,verified: this.verified, damageCooldown: this.damageCooldown, joinTime: this.joinTime, skin: this.skin, id: this.id, name:this.name, health:this.health, coins: this.coins,pos:this.pos, speed:this.speed,scale:this.scale,maxHealth: this.maxHealth, mouseDown: this.mouseDown, mousePos: this.mousePos};
+  }
+
+  getSelfSendObj() {
+    var copy = Object.assign({}, this);
+    delete copy.session;
+    delete copy.socket;
+    return copy;
   }
 }
 

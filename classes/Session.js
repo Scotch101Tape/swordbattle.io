@@ -5,22 +5,22 @@ Defines a session of swordbattle.io
 
 
 // Modules
-const Players = require("./Players")
-const Player = require("./Player")
-const AiPlayer = require("./AiPlayer")
+const Players = require("./Players");
+const Player = require("./Player");
+const AiPlayer = require("./AiPlayer");
 const { sql } = require("../database");
-const filter = require("leo-profanity")
-const Coin = require("./Coin")
-const Chest = require("./Chest")
+const filter = require("leo-profanity");
+const Coin = require("./Coin");
+const Chest = require("./Chest");
 const { v4: uuidv4 } = require("uuid");
 
 // The session class
 class Session {
-  Status = {
+  static Status = {
     Exiting: 0,
     Running: 1,
     Entering: 2,
-  }
+  };
 
   constructor(io, room, connectedToDatabase, configure) {
     // The io instance from socket.io
@@ -56,24 +56,26 @@ class Session {
     this.connectedToDatabase = connectedToDatabase;
 
     // Players
-    this.players = new Players(this);
+    this.players = new Players();
 
     // The status
     // Entering until there is a player
     // Running until cleanup is run
     // Exiting until it is gone
-    this.status = Session.Status.Entering
+    this.status = Session.Status.Entering;
 
     // The last time that the server sent out a PSA about where all the chests and coins are
-    this.lastChestSend = Date.now()
-    this.lastCoinSend = Date.now()
+    this.lastChestSend = Date.now();
+    this.lastCoinSend = Date.now();
   }
 
   // To be fired 30 times per second (every 1000/30ms)
   async tick() {
+    if (Date.now() % 100 == 0) console.log(this);
+
     // If the server is entering, don't do the tick
     if (this.status == Session.Status.Entering) {
-      return
+      return;
     }
 
     // clean up the playerlist
@@ -132,7 +134,7 @@ class Session {
     this.players.asList().forEach((player) => {
       if (player) {
         // Update the player values
-        player.updateValues()
+        player.updateValues();
         //   player.moveWithMouse(players)
 
         // Tick ai players
@@ -172,7 +174,7 @@ class Session {
             socket.emit("player", player.getSendObj());
           } else { // If the socket corresponds with the player
             // emit "me" with the player (NOT the send object)
-            socket.emit("me", player);
+            socket.emit("me", player.getSelfSendObj());
             // If its been a second since the last coin send
             if(Date.now() - this.lastCoinSend >= 1000) {
               // Emit the coins the are next to the player
@@ -192,13 +194,13 @@ class Session {
 
   // Connect the socket to the session
   // This includes creating the player for the socket and connecting all the events, etc
-  async connectSocket(socket, name, options) {
+  async connectSocket(socket, options) {
     // Connect the socket to the session room
-    socket.join(this.room)
+    socket.join(this.room);
 
     // Clean the name
     var name;
-    if (!tryverify) {
+    if (!options.tryverify) {
       try {
         name = filter.clean(options.name.substring(0, 16));
       } catch (e) {
@@ -219,8 +221,8 @@ class Session {
     options.name = name;
 
     // Create the player
-    var player = new Player(socket.id, options.name)
-    player.updateValues()
+    var player = new Player(socket, options.name, this);
+    player.updateValues();
     if ("movementMode" in options) {
       player.movementMode = options.movementMode;
     }
@@ -229,13 +231,15 @@ class Session {
       player.skin = accounts[0].skins.selected;
     }
 
-    // Emit the new player to the rest of the players
-    socket.to(this.room).emit("new", player)
+    this.players.addPlayer(player);
 
-    // Emit the rest of the players to the player if there are players other than thePlayer in the session
-    var allPlayers = this.players.asList()
+    // Emit the new player to the rest of the players
+    socket.to(this.room).emit("new", JSON.stringify(player.getSelfSendObj()));
+
+    // Emit the rest of the players to the player if there are players other than the player in the session
+    var allPlayers = this.players.asList();
     if (allPlayers.filter(p => p.id != player.id).length > 0) {
-      socket.emit("players", allPlayers)
+      socket.emit("players", allPlayers.map(player => player.getSendObj()));
     }
 
     //TODO: Make coins emit only within range (not sure if this is done ill just leave this)
@@ -257,7 +261,7 @@ class Session {
       socket.on("evolve", (eclass) => {
         // If player is not in player list, return
         if(!this.players.has(socket.id)) {
-          return socket.emit("refresh")
+          return socket.emit("refresh");
         }
 
         // Get the player
@@ -282,7 +286,7 @@ class Session {
       socket.on("ability", () => {
         // If player is not in player list, return
         if (this.players.has(socket.id)) {
-          return socket.emit("refresh")
+          return socket.emit("refresh");
         }
 
         // Get the player
@@ -328,7 +332,7 @@ class Session {
           if (this.players.has(socket.id)) {
             var player = this.players.getPlayer(socket.id);
             player.move(controller);
-            coins = player.collectCoins(this.coins, this.io, this.levels);
+            this.coins = player.collectCoins(this.coins, this.io, this.levels);
           }
         } catch (e) {
           console.log(e);
@@ -402,7 +406,10 @@ class Session {
         // Emit the new coins
         this.io.to(this.room).emit("coin", drop, [player.pos.x, player.pos.y]);    
 
-        sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${player.name}, ${player.coins}, ${player.kills}, ${Date.now() - player.joinTime}, ${player.verified})`;
+        // Update the databse if the session is connected to the databse
+        if (this.connectedToDatabase) {
+          sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${player.name}, ${player.coins}, ${player.kills}, ${Date.now() - player.joinTime}, ${player.verified})`;
+        }
 
         // Delete the player
         this.players.deletePlayer(socket.id);
@@ -413,29 +420,53 @@ class Session {
     }
 
     // Move from entering to running when the first player is connected
-    if (this.status == Status.Entering) {
-      this.status = Status.Running
+    if (this.status == Session.Status.Entering) {
+      this.status = Session.Status.Running;
     }
   }
 
   // Returns the amount of real players in the session
   realPlayerCount() {
-    return this.players.asList().filter(player => !player.ai).length
+    return this.players.asList().filter(player => !player.ai).length;
   }
 
   // Return the amount of ai players in the session
   aiPlayerCount() {
-    return this.players.asList().filter(player => player.ai).length
+    return this.players.asList().filter(player => player.ai).length;
   }
 
   // Return the total players in the session
   totalPlayerCount() {
-    return this.player.asList().length
+    return this.player.asList().length;
   }
 
   // Clean yourself up you slob
-  cleanup() {
-    this.status = Session.Status.Exiting
+  async cleanup() {
+    this.status = Session.Status.Exiting;
+
+    for (const player in this.players.asList()) {
+      if (!player.ai) {
+        const socket = player.socket;
+        socket.emit(
+          "ban",
+          "<h1>Server is shutting down, we'll be right back!<br>Sorry for the inconvenience.<br><br>" +
+            (player.verified
+              ? " Your Progress has been saved in your account"
+              : "") +
+            "</h1><hr>"
+        );
+        socket.disconnect();
+        
+        if (this.connectedToDatabase) {
+          // Save the player stats
+          await sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${
+            player.name
+          }, ${player.coins}, ${player.kills}, ${Date.now() - player.joinTime}, ${
+            player.verified
+          })`;
+        }
+      }
+    }
   }
 }
 

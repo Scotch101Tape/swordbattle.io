@@ -4,6 +4,13 @@ The main file for the server
 This is the first file that is run
 */
 
+/*
+TODO 6/4/22
+ - Player stuff (player class)
+ - client stuff
+ - you got this
+*/
+
 const express = require("express");
 const https = require("https");
 var http = require("http");
@@ -75,7 +82,7 @@ const Chest = require("./classes/Chest");
 const AiPlayer = require("./classes/AiPlayer");
 const PlayerList = require("./classes/Players");
 const Session = require("./classes/Session");
-const evolutions = require("./classes/evolutions")
+const evolutions = require("./classes/evolutions");
 const Sessions = require("./classes/Sessions");
 const { sql } = require("./database");
 const { config } = require("dotenv");
@@ -613,11 +620,12 @@ Object.filter = (obj, predicate) =>
 const MAX_TOTAL_PLAYERS = 1000;
 
 // Create a new session of the game
-var sessions = new Sessions();
+var sessions = new Sessions(io);
 
-// Holds all sockets connected to the server and which room they are in
-// {socketId: room}
-socketIds = {};
+// Allow moderation to refrence sessions
+// This is very hacky but tbh I don't feel like messin with moderation.js
+// It works 😁
+moderation.sessions = sessions;
 
 // When the socket connects
 io.on("connection", async (socket) => {
@@ -636,11 +644,17 @@ io.on("connection", async (socket) => {
 
   // When the player wants to get into the game
   socket.on("go", async (r, captchatoken, tryverify, options) => {
+    // If the server is exiting, then dont allow a player to join
+    if (serverState == "exiting") {
+      socket.emit(
+        "ban",
+        "<h1>Server is shutting down, we'll be right back!<br>Sorry for the inconvenience.<br><br></h1><hr>"
+      );
+      return socket.disconnect();
+    }
+
     // When the sanity checks are passed, this function will run
     async function ready() {
-      // Add socket to sockets
-      sockets[socket.id] = socket;
-
       // Add socket to the session it belongs to
       const session = sessions.session(options.room);
       await session.connectSocket(socket, options);
@@ -658,7 +672,7 @@ io.on("connection", async (socket) => {
     options.name = r;
 
     // Add tryverify to options
-    options.tryverify = tryverify
+    options.tryverify = tryverify;
 
     // Ban if captcha not sent
 		if (!captchatoken && recaptcha) {
@@ -670,13 +684,13 @@ io.on("connection", async (socket) => {
 		}
 
     // Ban if not sent name
-		if (!r) {
+		if (!options.name) {
 			socket.emit("ban", "You were kicked for not sending a name. ");
 			return socket.disconnect();
 		}
 
     // Ban if player is already connected
-		if (socket.id in sockets) {
+		if (socket.id in sessions.allSockets()) {
 			socket.emit(
 				"ban",
 				"You were kicked for 2 players on 1 id. Send this message to gautamgxtv@gmail.com<br> In the meantime, try restarting your computer if this happens a lot. "
@@ -685,7 +699,7 @@ io.on("connection", async (socket) => {
 		}
 
     // If the room is undefined, assume it is the main room
-    if (!(room in options)) {
+    if (!("room" in options)) {
       options.room = Sessions.MAIN_ROOM;
     }
 
@@ -697,13 +711,13 @@ io.on("connection", async (socket) => {
     }
 
     // Ban if session is full
-		if (session.playerCount >= sessions.session(options.room).maxPlayers) {
+		if (sessions.session(options.room).playerCount >= sessions.session(options.room).maxPlayers) {
 			socket.emit("ban", "Session is full. Please try again later.");
 			return socket.disconnect();
 		}
 
     // Ban if too many players connected to server
-    if (Object.values(socketIds).length >= MAX_TOTAL_PLAYERS) {
+    if (sessions.allPlayers().length >= MAX_TOTAL_PLAYERS) {
       socket.emit("ban", "Server is full. Please try again later");
       return socket.disconnect();
     }
@@ -711,7 +725,7 @@ io.on("connection", async (socket) => {
     // Ban if the password for the session is incorrect
     if (options.room != Sessions.MAIN_ROOM) {
       if (Sessions.isCorrectPassword(options.room, options.password)) {
-        socket.emit("ban", "Incorrect password for room")
+        socket.emit("ban", "Incorrect password for room");
       }
     }
 
@@ -784,7 +798,7 @@ var actps = 0;
 // app/api/serverinfo leads to a json of stats
 app.get("/api/serverinfo/:room", (req, res) => {
   // Get the session that corresponds with the room passed
-  var session = sessions.session(req.params.room || Sessions.MAIN_ROOM)
+  var session = sessions.session(req.params.room || Sessions.MAIN_ROOM);
   
   // Send the stats
   res.send({
@@ -824,9 +838,10 @@ setInterval(async () => {
 		tps = 0;
 	}
 
-  Sessions.forEachSession(session => {
-    session.tick()
-  })
+  // Tick each session
+  sessions.forEachSession(session => {
+    session.tick();
+  });
 
   // Increment tps for calculation
 	tps += 1;
@@ -850,8 +865,8 @@ process.on("SIGTERM", () => {
       console.log("exited cleanly");
       process.exit(1);
     })
-    .catch(() => {
-      console.log("failed to exit cleanly");
+    .catch((e) => {
+      console.log(e, "failed to exit cleanly");
       process.exit(1);
     });
 });
@@ -864,8 +879,8 @@ process.on("SIGINT", () => {
       console.log("exited cleanly");
       process.exit(1);
     })
-    .catch(() => {
-      console.log("failed to exit cleanly");
+    .catch((e) => {
+      console.log(e, "failed to exit cleanly");
       process.exit(1);
     });
 });
@@ -886,45 +901,18 @@ process.on("unhandledRejection", (reason, p) => {
 
 // Cleanly exit
 async function cleanExit() {
+  // TODO make this more efficient
+
   console.log("exiting cleanly...");
 
   // Set the server state to exiting
   // This will make it so players leaving are ignored
   serverState = "exiting";
 
-  // Get all the sockets
-  var sockets = await io.fetchSockets();
-
-  // For each player
-  for (var player of Object.values(PlayerList.players)) {
-    // If the player is a real player
-    if (player && !player.ai) {
-
-      // Get the socket that corresponds with the player
-      var socket = sockets.find((s) => s.id == player.id);
-
-      // If there is a socket that corresponds
-      if (socket) {
-        // Ban the player or being in the server when it was closing ;(
-        socket.emit(
-          "ban",
-          "<h1>Server is shutting down, we'll be right back!<br>Sorry for the inconvenience.<br><br>" +
-            (player.verified
-              ? " Your Progress has been saved in your account"
-              : "") +
-            "</h1><hr>"
-        );
-        socket.disconnect();
-
-        // Save the player stats
-        await sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${
-          player.name
-        }, ${player.coins}, ${player.kills}, ${Date.now() - player.joinTime}, ${
-          player.verified
-        })`;
-      }
-    }
-  }
+  // Cleanup the sessions
+  sessions.forEachSession(session => {
+    session.cleanup();
+  });
 }
 
 /*

@@ -1,4 +1,3 @@
-const PlayerList = require("./classes/PlayerList");
 module.exports = {
     bannedIps: [
         "34.133.168.193",
@@ -11,6 +10,8 @@ module.exports = {
         "73.222.174.240",
       ],
       io: undefined,
+      socketIds: undefined,
+      sessions: undefined,
     start(app, io) {
       app.get("/announcement/:token", (req, res) => {
         if (process.env.TOKEN == req.params.token && typeof req.query.message == "string") {
@@ -38,10 +39,12 @@ module.exports = {
         app.get("/ipcheck/:token", (req, res) => {
             if (process.env.TOKEN == req.params.token) {
               var txt = "";
-              if (Object.values(PlayerList.players).length < 1) return res.send("len 0");
-              Object.values(PlayerList.players).forEach((player) => {
-                var socket = module.exports.io.sockets.sockets.get(player.id);
-               if(socket) txt += player.name + " - " + socket.ip + " - "+player.id+"<br>";
+              if (Object.values(module.exports.socketIds).length < 1) return res.send("len 0");
+              Object.values(module.exports.sessions.allPlayers()).forEach((player) => {
+                var socket = module.exports.socketIds[player.id];
+                if (socket) {
+                  txt += player.name + " - " + socket.ip + " - "+player.id+"<br>";
+                }
               });
               res.send(txt);
             } else {

@@ -3,27 +3,22 @@ Players class
 Holds the players and provides convenient methods
 */
 
-const SessionObject = require("./SessionObject");
-
-class Players extends SessionObject {
-  constructor(session) {
+class Players {
+  constructor() {
     // Maps socket id to player
     this.players = {};
 
     // List of dead player's ids
     this.deadPlayers = [];
-
-    // See ./SessionObject.js
-    super(session);
   }
 
   // Gets the player from the id
   // If the id does not correspond to a player it returns undefined
   getPlayer(id) {
     if (id in this.players) {
-      return this.players[id]
+      return this.players[id];
     } else {
-      return undefined
+      return undefined;
     }
   }
 
@@ -62,7 +57,11 @@ class Players extends SessionObject {
 
   // Returns the players as a list
   asList() {
-    return Object.values(this.players)
+    return Object.values(this.players);
+  }
+  
+  addPlayer(player) {
+    this.setPlayer(player.id, player);
   }
 }
 
