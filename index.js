@@ -26,8 +26,6 @@ var process = require("process");
 // When the server is exiting and preping to shut down, this turns to "exiting"
 var serverState = "running";
 
-// The size of the map
-var map = 10000;
 //var cors = require("cors");
 
 // The servers
@@ -839,9 +837,9 @@ setInterval(async () => {
 	}
 
   // Tick each session
-  sessions.forEachSession(session => {
+  for (const session of sessions.sessionsInList()) {
     session.tick();
-  });
+  }
 
   // Increment tps for calculation
 	tps += 1;
@@ -887,7 +885,7 @@ process.on("SIGINT", () => {
 
 // When there is a an unhandled rejection
 process.on("unhandledRejection", (reason, p) => {
-  console.log("Unhandled Rejection at: Promise", p, "reason:", reason);
+  console.log("Unhandled Rejection at: Promise", p, "\nreason:", reason);
   cleanExit()
     .then(() => {
       console.log("exited cleanly");
@@ -910,9 +908,9 @@ async function cleanExit() {
   serverState = "exiting";
 
   // Cleanup the sessions
-  sessions.forEachSession(session => {
+  for (const session of sessions.sessionsInList()) {
     session.cleanup();
-  });
+  }
 }
 
 /*

@@ -13,6 +13,7 @@ const filter = require("leo-profanity");
 const Coin = require("./Coin");
 const Chest = require("./Chest");
 const { v4: uuidv4 } = require("uuid");
+const evolutions = require("./evolutions");
 
 // The session class
 class Session {
@@ -37,6 +38,9 @@ class Session {
 
     // Max players allowed in the session
     this.maxPlayers = configure.maxPlayers;
+
+    // The size of the map
+    this.mapSize = 10000;
 
     // Exp needed to level up
     // (This means it is possible to have sessions with different leveling up ways)
@@ -71,8 +75,6 @@ class Session {
 
   // To be fired 30 times per second (every 1000/30ms)
   async tick() {
-    if (Date.now() % 100 == 0) console.log(this);
-
     // If the server is entering, don't do the tick
     if (this.status == Session.Status.Entering) {
       return;
@@ -97,14 +99,14 @@ class Session {
     if (this.realPlayerCount() > 0 && this.aiPlayerCount() < this.maxAiPlayers && Math.random() <= 0.01) {
       // Create the ai player
       var id = uuidv4();
-      var aiPlayer = new AiPlayer(id);
+      var aiPlayer = new AiPlayer(id, this);
       console.log(`AI Player Joined -> ${aiPlayer.name}`);
 
       // Add it to the list
-      this.players.setPlayer(id, aiPlayer);
+      this.players.addPlayer(aiPlayer);
 
       // Emit a new player
-      this.io.to(this.room).emit("new", aiPlayer);
+      this.io.to(this.room).emit("new", aiPlayer.getSendObj());
     }
 
     // If its been 10 seconds since the last chest PSA
@@ -285,7 +287,8 @@ class Session {
       // When the player want to use an ability
       socket.on("ability", () => {
         // If player is not in player list, return
-        if (this.players.has(socket.id)) {
+
+        if (!this.players.has(socket.id)) {
           return socket.emit("refresh");
         }
 
@@ -380,6 +383,8 @@ class Session {
         // Get the player
         var player = this.players.getPlayer(socket.id);
 
+        console.log("Righ here in deisc");
+
         //drop their coins randomly near them
         var drop = [];
         var dropAmount = clamp(Math.round(player.coins*0.8), 10, 20000);
@@ -394,8 +399,8 @@ class Session {
 
           this.coins.push(
             new Coin({
-              x: clamp(x, -(map/2), map/2),
-              y: clamp(y, -(map/2), map/2),
+              x: clamp(x, -(this.mapSize/2), this.mapSize/2),
+              y: clamp(y, -(this.mapSize/2), this.mapSize/2),
             }, value)
           );
 
@@ -408,7 +413,10 @@ class Session {
 
         // Update the databse if the session is connected to the databse
         if (this.connectedToDatabase) {
-          sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${player.name}, ${player.coins}, ${player.kills}, ${Date.now() - player.joinTime}, ${player.verified})`;
+          (sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${player.name}, ${player.coins}, ${player.kills}, ${Date.now() - player.joinTime}, ${player.verified})`)
+          .catch(() => {
+            console.error("Database is not working");
+          });
         }
 
         // Delete the player
@@ -445,8 +453,16 @@ class Session {
     this.status = Session.Status.Exiting;
 
     for (const player in this.players.asList()) {
+      console.log("extra layers");
       if (!player.ai) {
+        console.log("kdf");
         const socket = player.socket;
+        
+        if (this.connectedToDatabase) {
+          // Save the player stats
+          await sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${player.name}, ${player.coins}, ${player.kills}, ${Date.now() - player.joinTime}, ${player.verified})`;
+        }
+
         socket.emit(
           "ban",
           "<h1>Server is shutting down, we'll be right back!<br>Sorry for the inconvenience.<br><br>" +
@@ -456,15 +472,6 @@ class Session {
             "</h1><hr>"
         );
         socket.disconnect();
-        
-        if (this.connectedToDatabase) {
-          // Save the player stats
-          await sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${
-            player.name
-          }, ${player.coins}, ${player.kills}, ${Date.now() - player.joinTime}, ${
-            player.verified
-          })`;
-        }
       }
     }
   }

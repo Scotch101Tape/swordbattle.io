@@ -11,14 +11,16 @@ const evolutions = require("./evolutions");
 const levels = require("../levels.json").map((level, index, array) => {
   // Set start
   if(index == 0) {
-		Object.assign({start: 0}, level);
+		level.start = 0;
 	} else {
-		Object.assign({start: array[index - 1].coins}, level);
+    level.start = array[index - 1].coins;
 	}
 
   // Replace evolution string with evolution class
-  if ("evolution" in level) {
-    level.evolution = evolutions[level.evolution];
+  if ("evolutions" in level) {
+    level.evolutions = level.evolutions.map((evolutionString) => {
+      return evolutions[evolutionString];
+    });
   }
 
   return level;
@@ -45,7 +47,7 @@ class Sessions {
       [Sessions.MAIN_ROOM]: new Session(io, Sessions.MAIN_ROOM_NAME, true,{
           maxCoins: 2000,
           maxChests: 20,
-          maxAiPlayers: 0,
+          maxAiPlayers: 20,
           maxPlayers: 50,
           levels: levels
       })
@@ -74,11 +76,6 @@ class Sessions {
     delete this.sessions[session];
     delete this.passwords[session];
     delete this.lastHadPlayers[session];
-  }
-
-  // Performs a funciton on each session
-  forEachSession(f) {
-    Object.values(this.sessions).forEach(f);
   }
 
   // Returns whether the password is correct for the room
@@ -130,6 +127,10 @@ class Sessions {
       sockets.push(player.socket);
     }
     return sockets;
+  }
+
+  sessionsInList() {
+    return Object.values(this.sessions);
   }
 }
 

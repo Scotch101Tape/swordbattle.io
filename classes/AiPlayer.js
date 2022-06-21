@@ -11,7 +11,7 @@ class AiPlayer extends Player {
       if (aiName.length > 2) aiName = aiName[1];
       else aiName = aiName[0];
        
-        super(id,  aiName, session);
+        super({id: id},  aiName, session);
         this.ai = true;
         this.target = undefined;
         this.lastHit = Date.now();
@@ -23,8 +23,8 @@ class AiPlayer extends Player {
     }
 
     tick(coins, io, levels, chests) {
-      if(PlayerList.deadPlayers.includes(this.id)) {
-        PlayerList.deletePlayer(this.id);
+      if(this.session.players.deadPlayers.includes(this.id)) {
+        this.session.players.deletePlayer(this.id);
       } else {
 const lerp = (x, y, a) => x * (1 - a) + y * a; 
 if(!this.target || !this.entityExists(this.target,this.getEntities(coins))) this.target = this.getClosestEntity(this.getEntities(coins));
@@ -73,14 +73,14 @@ if(!this.target || !this.entityExists(this.target,this.getEntities(coins))) this
       return controller;
     }
     getEntities(coins) {
-      var players = Object.values(PlayerList.players).filter(p=>p && p.id !== this.id && Date.now() - p.joinTime > 5000);
+      var players = this.session.players.asList().filter(p=>p && p.id !== this.id && Date.now() - p.joinTime > 5000);
       var entities = players.concat(coins);
       return (this.coins < 5000 && Date.now() - this.joinTime < 5000 ? coins : (this.coins < 5000 ? entities : players));
       //return players
     }
     getTpos() {
       try {
-      return (this.target.type == "player" ? PlayerList.getPlayer(this.target.id).getSendObj().pos : this.target.pos);
+      return (this.target.type == "player" ? this.session.players.getPlayer(this.target.id).getSendObj().pos : this.target.pos);
       } catch(e) {
         return this.target.pos;
       }
