@@ -455,7 +455,6 @@ class Session {
     for (const player in this.players.asList()) {
       console.log("extra layers");
       if (!player.ai) {
-        console.log("kdf");
         const socket = player.socket;
         
         if (this.connectedToDatabase) {
