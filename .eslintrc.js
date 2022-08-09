@@ -12,7 +12,6 @@ module.exports = {
 	"ignorePatterns": ["dist/*.js"],
 	"rules": {
 		"linebreak-style": [
-			"error",
 			"unix"
 		],
 		"quotes": [
