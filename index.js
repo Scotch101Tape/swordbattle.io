@@ -90,7 +90,7 @@ const { config } = require("dotenv");
 
 
 const checkifMissingFields = (req,res,next) => {
-if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string" || typeof req.body.captcha !== "string") {	
+if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string" || typeof req.body.captcha !== "string") {
 		res.send({error: "Missing fields"});
 		return;
 }
@@ -114,7 +114,7 @@ if (production) {
 	const rateLimit = require("express-rate-limit");
 	const limiter = rateLimit({
 		windowMs: 60 * 1000, // 1 min
-		max: 300, // limit each IP to 52 requests per min 
+		max: 300, // limit each IP to 52 requests per min
 		message: "Too many requests from this IP, please try again" //Add message when rate-limit
 	});
 	app.use(limiter);
@@ -179,7 +179,7 @@ app.all("*", (req, res, next) => {
     return;
   } else next();
 } catch (e) {
-  console.log(e);
+  //console.log(e);
   next();
 }
 
@@ -188,7 +188,7 @@ app.all("*", (req, res, next) => {
 var levels = [];
 oldlevels.forEach((level, index)  =>{
 	if(index == 0) {
-		levels.push(Object.assign({start: 0},level)); 
+		levels.push(Object.assign({start: 0},level));
 	}
 	else {
 		levels.push(Object.assign({start: levels[index - 1].coins}, level));
@@ -324,11 +324,11 @@ app.post("/api/equip", async (req, res) => {
 });
 
 app.post("/api/changename", async (req,res) => {
-	if(typeof req.body!=="object" || typeof req.body.secret !== "string" || typeof req.body.username !== "string") {	
+	if(typeof req.body!=="object" || typeof req.body.secret !== "string" || typeof req.body.username !== "string") {
 		res.status(400).send({error: "Missing fields"});
 		return;
 	}
-  
+
   //check if secret valid
   var secret = req.body.secret;
   var newUsername = req.body.username;
@@ -362,7 +362,7 @@ app.post("/api/changename", async (req,res) => {
 		res.status(400).send({error: "Username can only contain letters, numbers, spaces, and the following symbols: !@\"$%&:';()*\+,-=[\]\^_{|}<>~`"});
 		return;
 	}
-	
+
 	var containsProfanity = filter.check(newUsername);
 	if(containsProfanity) {
 		res.status(400).send({error: "Username contains a bad word!\nIf this is a mistake, please contact an admin."});
@@ -377,7 +377,7 @@ app.post("/api/changename", async (req,res) => {
     res.status(400).send({error: `You can change your username again in ${7-daysSince[0].days} days`});
     return;
   }
-  
+
 
 
   //check if new username exists
@@ -393,12 +393,12 @@ app.post("/api/changename", async (req,res) => {
   await sql`UPDATE games SET name=${newUsername} WHERE lower(name)=${oldUsernameLower} AND verified=true`;
 
   res.status(200).send("Success");
-  
+
 });
 
 app.post("/api/signup",checkifMissingFields, async (req, res) => {
-  
-	if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string") {	
+
+	if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string") {
 		res.send({error: "Missing fields"});
 		return;
 	}
@@ -432,7 +432,7 @@ app.post("/api/signup",checkifMissingFields, async (req, res) => {
 		res.send({error: "Username can only contain letters, numbers, spaces, and the following symbols: !@\"$%&:';()*\+,-=[\]\^_{|}<>~`"});
 		return;
 	}
-	
+
 	var containsProfanity = filter.check(username);
 	if(containsProfanity) {
 		res.send({error: "Username contains a bad word!\nIf this is a mistake, please contact an admin."});
@@ -459,7 +459,7 @@ app.post("/api/signup",checkifMissingFields, async (req, res) => {
 
 });
 
-app.post("/api/login",checkifMissingFields, async (req, res) => { 
+app.post("/api/login",checkifMissingFields, async (req, res) => {
 
 
 	async function doit() {
@@ -477,13 +477,13 @@ app.post("/api/login",checkifMissingFields, async (req, res) => {
 		res.send({error: "Invalid password"});
 		return;
 	}
-	
+
 	res.send(account[0]);
 	}
 	var send = {
 		secret: process.env.CAPTCHASECRET,
 		response: req.body.captcha,
-		remoteip: req.headers["x-forwarded-for"] || req.socket.remoteAddress 
+		remoteip: req.headers["x-forwarded-for"] || req.socket.remoteAddress
 	};
 	if(recaptcha) {
 		axios
@@ -576,7 +576,7 @@ app.get("/shop", async (req, res) => {
           else counts[y] = 1;
         });
       });
-    
+
       acc.bal = yo[0].sum + acc.coins;
     }
   }
@@ -658,8 +658,8 @@ app.get("/:user", async (req, res, next) => {
 			WHERE DATE_ACTUAL>='2022-01-01'
 		order by date_actual asc
 		) A
-		
-		LEFT outer JOIN 
+
+		LEFT outer JOIN
 		(
 		SELECT
 		NAME,
@@ -673,7 +673,7 @@ app.get("/:user", async (req, res, next) => {
 		ON A.dt=B.PLAYED_DATE
 		WHERE NAME='Dooku'
 		ORDER BY A.dt ASC
-	
+
 */
 
     var stats = await sql`
@@ -681,8 +681,8 @@ app.get("/:user", async (req, res, next) => {
 		(
 		select distinct(created_at::date) as Dt from games where created_at >= ${
       dbuser[0].created_at
-    }::date-1 
-		order by created_at::date 
+    }::date-1
+		order by created_at::date
 		) a
 		left join
 		(
@@ -732,7 +732,7 @@ io.on("connection", async (socket) => {
     socket.disconnect();
   }
 
-  socket.on("go", async (r, captchatoken, tryverify, options) => {
+  socket.on("go", async (r, captchatoken, tryverify, options, roomName) => {
     async function ready() {
       var name;
       if (!tryverify) {
@@ -755,7 +755,7 @@ io.on("connection", async (socket) => {
         var name = accounts[0].username;
       }
 
-      var thePlayer = new Player(socket.id, name);
+      var thePlayer = new Player(socket.id, name, roomName);
       thePlayer.updateValues();
       if (options && options.hasOwnProperty("movementMode")) {
         thePlayer.movementMode = options.movementMode;
@@ -774,12 +774,12 @@ io.on("connection", async (socket) => {
           }
 				}
 
-				
+
 				PlayerList.setPlayer(socket.id, thePlayer);
-				console.log("player joined -> " + socket.id);
+				console.log(`player joined -> room: ${roomName}, id: ${socket.id}`);
 				socket.broadcast.emit("new", thePlayer);
 
-				var allPlayers = Object.values(PlayerList.players);
+				var allPlayers = Object.values(PlayerList.allPlayers);
 				allPlayers = allPlayers.filter((player) => player.id != socket.id);
 
 				if (allPlayers && allPlayers.length > 0) socket.emit("players", allPlayers);
@@ -802,6 +802,9 @@ io.on("connection", async (socket) => {
 			socket.emit("ban", "You were kicked for not sending a name. ");
 			return socket.disconnect();
 		}
+    if (roomName == null) {
+      roomName = PlayerList.MAIN_ROOM_NAME
+    }
 		if (PlayerList.has(socket.id)) {
 			socket.emit(
 				"ban",
@@ -810,7 +813,7 @@ io.on("connection", async (socket) => {
 			return socket.disconnect();
 		}
 		//console.log(Object.values(PlayerList.players).length);
-		if (Object.values(PlayerList.players).length >= maxPlayers) {
+		if (Object.values(PlayerList.allPlayers).length >= maxPlayers) {
 			socket.emit("ban", "Server is full. Please try again later.");
 			return socket.disconnect();
 		}
@@ -857,7 +860,7 @@ io.on("connection", async (socket) => {
       player.evolutionQueue.shift();
       var evo = evolutions[eclass];
       console.log(player.name + " evolved to " + eclass);
-          
+
         player.evolutionData = {default: evo.default(), ability: evo.ability()};
       player.evolution =evo.name;
       player.updateValues();
@@ -882,7 +885,7 @@ io.on("connection", async (socket) => {
 			var thePlayer = PlayerList.getPlayer(socket.id);
 			thePlayer.mousePos = mousePos;
 			PlayerList.updatePlayer(thePlayer);
-     
+
 		}
 		else socket.emit("refresh");
 
@@ -933,7 +936,7 @@ io.on("connection", async (socket) => {
 			var p = PlayerList.getPlayer(socket.id);
 			p.lastChat = Date.now();
 			PlayerList.setPlayer(socket.id, p);
-			
+
 				io.sockets.emit("chat", {
 					msg: filter.clean(msg),
 					id: socket.id,
@@ -971,8 +974,8 @@ io.on("connection", async (socket) => {
               }
 
                 io.sockets.emit("coin", drop, [thePlayer.pos.x, thePlayer.pos.y]);
-								
-              
+
+
 
 		sql`INSERT INTO games (name, coins, kills, time, verified) VALUES (${thePlayer.name}, ${thePlayer.coins}, ${thePlayer.kills}, ${Date.now() - thePlayer.joinTime}, ${thePlayer.verified})`;
 
@@ -988,14 +991,14 @@ var lastCoinSend = Date.now();
 var tps = 0;
 var actps = 0;
 app.get("/api/serverinfo", (req, res) => {
-  var playerCount = Object.values(PlayerList.players).length;
+  var playerCount = Object.values(PlayerList.allPlayers).length;
   var lag = actps > 15 ? "No lag" : actps > 6 ? "Moderate lag" : "Extreme lag";
   res.send({
     playerCount,
     lag,
     maxPlayers,
     tps: actps,
-    actualPlayercount: Object.values(PlayerList.players).filter((p) => !p.ai)
+    actualPlayercount: Object.values(PlayerList.allPlayers).filter((p) => !p.ai)
       .length,
   });
 });
@@ -1013,8 +1016,9 @@ setInterval(async () => {
 		chests.push(new Chest());
 		io.sockets.emit("chest", chests[chests.length - 1]);
 	}
-	var normalPlayers = Object.values(PlayerList.players).filter(p => p && !p.ai).length;
-	var aiPlayers = Object.keys(PlayerList.players).length;
+
+	var normalPlayers = Object.values(PlayerList.allPlayers).filter(p => p && !p.ai).length;
+	var aiPlayers = Object.keys(PlayerList.allPlayers).length;
 	// console.log(aiNeeded)
   function degrees_to_radians(degrees)
   {
@@ -1031,18 +1035,18 @@ setInterval(async () => {
     var a = degrees_to_radians(sword.angle-45);
     sword.x += Math.cos(a) * 100;
     sword.y += Math.sin(a) * 100;
-    
+
     //collision check
       //HARDCODED
     var tip = movePointAtAngle([sword.x, sword.y], a, (130*sword.scale));
     var base = movePointAtAngle([sword.x, sword.y], a, (130*sword.scale)*-1);
-    Object.values(PlayerList.players).forEach((player, _) => {
+    Object.values(PlayerList.allPlayers).forEach((player, _) => {
       if(player.id == sword.id) return;
       if(Date.now() - player.joinTime < 5000) return;
       if(sword.hit.includes(player.id)) return;
       var swordOwner = PlayerList.getPlayer(sword.id);
       if(!swordOwner) return hit=true;
-    
+
 
       // check line collision
       if(lineCircle(tip[0], tip[1], base[0], base[1], player.pos.x, player.pos.y, player.radius*player.scale)) {
@@ -1071,14 +1075,14 @@ setInterval(async () => {
       if(player) {
         player.swordInHand = true;
         PlayerList.updatePlayer(player);
-      } 
+      }
     }
   });
   io.emit("flyingSwords", flyingSwords);
 
 	if (normalPlayers > 0 && aiPlayers < maxAiPlayers && getRandomInt(0,100) == 5) {
 		var id = uuidv4();
-		var theAi = new AiPlayer(id);
+		var theAi = new AiPlayer(id, PlayerList.MAIN_ROOM_NAME);
 		console.log("AI Player Joined -> "+theAi.name);
 		PlayerList.setPlayer(id, theAi);
 		io.sockets.emit("new", theAi);
@@ -1098,7 +1102,7 @@ setInterval(async () => {
 	}
 
 	//health regen
-	var playersarray = Object.values(PlayerList.players);
+	var playersarray = Object.values(PlayerList.allPlayers);
 	var sockets = await io.fetchSockets();
 
 	sockets.forEach((b) => {
@@ -1112,7 +1116,7 @@ setInterval(async () => {
 	});
 
 	playersarray.forEach((player) => {
-    
+
 		if(player) {
       player.updateValues();
 			//   player.moveWithMouse(players)
@@ -1177,7 +1181,7 @@ process.on("SIGTERM", () => {
           process.exit(1);
         });
       } else process.exit(1);
-     
+
     });
 });
 process.on("SIGINT", () => {
@@ -1267,7 +1271,7 @@ async function cleanExit() {
 
   var sockets = await io.fetchSockets();
 
-  for (var player of Object.values(PlayerList.players)) {
+  for (var player of Object.values(PlayerList.allPlayers)) {
     if (player && !player.ai) {
       var socket = sockets.find((s) => s.id == player.id);
       if (socket) {

@@ -12,29 +12,29 @@ class GameScene extends Phaser.Scene {
 	constructor(callback) {
 		super();
 		this.callback = callback;
-	
+
 	}
 
-	preload() {    
+	preload() {
 		window.onbeforeunload = confirmExit;
 		function confirmExit(e) {
 			e.preventDefault();
 			return "You are in game.. Do you really want to leave?";
 		}
-		try {       
+		try {
 			document.getElementsByClassName("grecaptcha-badge")[0].style.opacity = 0;
 		} catch(e) {
 			console.log(e);
 		}
 		this.ready = false;
 		this.loadrect = this.add.image(0, 0, "opening").setOrigin(0).setScrollFactor(0, 0).setScale(2).setDepth(200);
-  
+
 		const cameraWidth = this.cameras.main.width;
 		const cameraHeight = this.cameras.main.height;
-	  
-		
+
+
 		this.loadrect.setScale(Math.max(cameraWidth / this.loadrect.width, cameraHeight / this.loadrect.height));
-	
+
 		this.loadrect.x = 0 - ((this.loadrect.displayWidth - cameraWidth)/2);
 		this.loadtext= this.add.text(this.canvas.width/2, this.canvas.height/2, "Connecting...", {fontFamily: "Arial", fontSize: "32px", color: "#ffffff"}).setOrigin(0.5).setScrollFactor(0, 0).setDepth(200);
 		this.ping = 0;
@@ -45,7 +45,7 @@ class GameScene extends Phaser.Scene {
 		var map = 10000;
 
         this.levels = [];
-    
+
 		//recaptcha
 		grecaptcha.ready(() =>{
 			grecaptcha.execute(CAPTCHASITE, {action: "join"}).then((thetoken) => {
@@ -80,14 +80,14 @@ class GameScene extends Phaser.Scene {
 				this.hit = this.sound.add("hit", config);
 				this.winSound = this.sound.add("winSound", config);
 				this.loseSound = this.sound.add("loseSound", config);
-    
+
 				this.tps = 0;
 				//background
 				this.background = this.add.tileSprite(0, 0, this.canvas.width, this.canvas.height, "background").setOrigin(0).setDepth(2);
 				this.background.fixedToCamera = true;
 
-				//player 
-        
+				//player
+
 				this.meSword = this.add.image(400, 100, "sword").setScale(0.25).setDepth(50).setAlpha(0.5);
 				this.mePlayer = this.add.image(400, 100, "player").setScale(0.25).setDepth(51).setAlpha(0.5);
 				this.meChat = this.add.text(0,0,"", {
@@ -101,8 +101,8 @@ class GameScene extends Phaser.Scene {
 
 
 				//killcounter
-				
-				try { 
+
+				try {
 				this.killCount = this.add.rexBBCodeText(15, 10, "Stabs: 0", {
 					fontFamily: "Georgia, \"Goudy Bookletter 1911\", Times, serif",
 				}).setFontSize(40).setDepth(101);
@@ -116,10 +116,10 @@ class GameScene extends Phaser.Scene {
 					width: 45,
 					height: 45
 				});
-				
+
 				this.killCount.setScrollFactor(0);
 
-		
+
 
 				//player+fpscounter
 
@@ -135,8 +135,8 @@ class GameScene extends Phaser.Scene {
 				}).setFontSize(20).setDepth(101);
 
 
-				
-					
+
+
 					this.leaderboard.setScrollFactor(0);
 				} catch(e) {
 					console.log(e);
@@ -145,7 +145,7 @@ class GameScene extends Phaser.Scene {
 				const convert = (num, val, newNum) => (newNum * val) / num;
 				this.miniMap = {people: [], scaleFactor: convert(1189, 96, this.canvas.width), square: undefined};
 				this.miniGraphics = this.add.graphics().setDepth(100);
-        
+
 				var padding = 13;
 				this.miniMap.scaleFactor = convert(1189, 96, this.canvas.width);
 				this.miniGraphics.x = this.canvas.width - ((this.miniMap.scaleFactor * 2) + padding);
@@ -161,7 +161,7 @@ class GameScene extends Phaser.Scene {
 				this.ability = this.add.text(this.abilityButton.x, this.abilityButton.y-100, "").setDepth(101).setVisible(false).setFontSize(50).setFontFamily("Georgia, \"Goudy Bookletter 1911\", Times, serif").setOrigin(0.5);
 
 
-        
+
 				this.cameras.main.ignore([this.miniGraphics, this.abilityButton, this.ability]);
 
 				//
@@ -183,7 +183,7 @@ class GameScene extends Phaser.Scene {
 						this.cameras.main.ignore(this.joyStick.thumb);
 
 				}
-      
+
 				//bar
 				this.meBar = new HealthBar(this, 0, 0, 16, 80);
 				this.meBar.bar.setAlpha(0.5);
@@ -209,7 +209,7 @@ class GameScene extends Phaser.Scene {
 					obj: null,
 					toggled: false,
 					btn: new ImgButton(this, 0, 0, "chatbtn", () => {
-						
+
 					if(this.loadtext.visible) return;
 					this.chat.toggled = !this.chat.toggled;
           if(this.spectating) {
@@ -218,33 +218,33 @@ class GameScene extends Phaser.Scene {
                     this.socket.disconnect();
           this.scene.start("title");
 			  }
-            
+
           }
 		  if(this.spectating) return;
 				 if(this.chat.toggled) {
-						
+
 						this.chat.obj = this.add.dom(this.canvas.width / 2, (this.canvas.height / 2)-this.canvas.height/5).createFromCache("chat");
 						//set focus to chat
 						this.chat.obj.getChildByID("chat").focus();
 						if (isSupported()) {
 							const unsubscribe = subscribe(visibility => {
 								if (visibility === "hidden") {
-									
+
 									this.chat.toggled = false;
 									this.chat.obj.destroy();
-								
+
 									unsubscribe();
 								}
 							});
-							
+
 							// After calling unsubscribe() the callback will no longer be invoked.
-						   
+
 						}
-            
+
 					} else {
 
 						if(this.chat.obj) {
-							
+
 							var msg = this.chat.obj.getChildByID("chat").value.trim();
 							if(msg.length > 0) this.socket.emit("chat", msg);
 
@@ -262,8 +262,8 @@ class GameScene extends Phaser.Scene {
 				});
 				this.chat.btn.btn.setScale(Math.min(this.canvas.height / 1000, this.canvas.width / 1500));
 				this.chat.btn.btn.x = this.killCount.width;
-				
-	
+
+
 
 
 				if(!this.mobile) {
@@ -273,7 +273,7 @@ class GameScene extends Phaser.Scene {
 					this.cameras.main.ignore(this.chat.btn.btn);
 					this.cameras.main.ignore(this.throwBtn.btn);
 				}
-				
+
 
 				//coins array
 				this.coins = [];
@@ -303,7 +303,7 @@ class GameScene extends Phaser.Scene {
 					}
 				});
 				this.cursors.enter.on("down", () => {
-        
+
 					if(this.loadtext.visible) return;
 					this.chat.toggled = !this.chat.toggled;
           if(this.spectating) {
@@ -312,19 +312,19 @@ class GameScene extends Phaser.Scene {
                     this.socket.disconnect();
           this.scene.start("title");
 			  }
-            
+
           }
 		  if(this.spectating) return;
 				 if(this.chat.toggled) {
-						
+
 						this.chat.obj = this.add.dom(this.canvas.width / 2, (this.canvas.height / 2)-this.canvas.height/5).createFromCache("chat");
 						//set focus to chat
 						this.chat.obj.getChildByID("chat").focus();
-            
+
 					} else {
 
 						if(this.chat.obj) {
-							
+
 							var msg = this.chat.obj.getChildByID("chat").value.trim();
 							if(msg.length > 0) this.socket.emit("chat", msg);
 
@@ -344,9 +344,9 @@ class GameScene extends Phaser.Scene {
 				}
 				//camera follow
 				this.cameras.main.setZoom(1);
-        
+
 				this.classPicker = new ClassPicker(this);
-        
+
 				this.UICam = this.cameras.add(this.cameras.main.x, this.cameras.main.y, this.canvas.width, this.canvas.height);
 				this.cameras.main.ignore([ this.killCount, this.playerCount, this.leaderboard,this.lvlBar.bar, this.lvlText, this.lvlState]);
 			// this.cameras.main.ignore([ this.killCount, this.playerCount, this.leaderboard,this.lvlBar.bar, this.lvlText, this.lvlState ]);
@@ -361,7 +361,7 @@ class GameScene extends Phaser.Scene {
 					this.bushes.push(this.add.image(l.x, l.y, "bush").setScale(l.scale).setDepth(70));
 					this.UICam.ignore(this.bushes[this.bushes.length-1]);
 				});
-				
+
 
 
 				this.input.addPointer(3);
@@ -384,7 +384,7 @@ class GameScene extends Phaser.Scene {
 							this.joyStick.thumb.radius = convert(2360, 100, this.canvas.width);
 							this.joyStick.radius = convert(2360, 250, this.canvas.width);
 						}
-						
+
 						this.UICam.x = this.cameras.main.x;
 						this.UICam.y = this.cameras.main.y;
 						this.chat.btn.btn.setScale((Math.min(this.canvas.height / 1000, this.canvas.width / 1500)));
@@ -401,8 +401,8 @@ class GameScene extends Phaser.Scene {
 						this.background.width = this.canvas.width;
 						this.background.height =  this.canvas.height;
 
-						
-            
+
+
 						padding = (this.canvas.width / 2);
 						if(this.spectating) {
 				          function msToTime(duration) {
@@ -410,8 +410,8 @@ class GameScene extends Phaser.Scene {
       seconds = Math.floor((duration / 1000) % 60),
       minutes = Math.floor((duration / (1000 * 60)) % 60),
       hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
-  
-  
+
+
     return (hours == "00"?"": hours+"h ") + (minutes == "00"?"": minutes+"m ") + seconds+"s";
   }
 
@@ -421,13 +421,13 @@ class GameScene extends Phaser.Scene {
 				this.deadText = this.add.text(this.canvas.width/2, (this.deathRect.y- (this.deathRect.height/2)), "You got stabbed", {fontFamily: "Arial", fontSize: "32px", color: "#000000"}).setOrigin(0.5);
 								this.deadText.setFontSize(Math.min(this.canvas.width/25,this.canvas.height/20));
 								this.deadText.y += this.deadText.height;
-								
+
 								var msgs = ["Nooooooooo", "Rest in peace", "You can do better!", "Practice makes perfect!", "Keep trying!"];
 								var msg = msgs[Math.floor(Math.random() * msgs.length)];
               this.dataText.destroy();
 								this.dataText = this.add.text(this.canvas.width/2, this.deadText.y, msg, {fontFamily: "Arial", fontSize: "32px", color: "#000000"}).setOrigin(0.5);
 								this.dataText.setFontSize(Math.min(this.canvas.width/40, this.canvas.height/30));
-							this.dataText.y += this.dataText.height*1.5;	
+							this.dataText.y += this.dataText.height*1.5;
 
               this.statsText.destroy();
               					this.statsText = this.add.text(this.canvas.width/2, this.dataText.y, "Stabbed By: "+this.dtas.killedBy+"\nCoins: "+this.myObj.coins+"\nKills: "+this.myObj.kills+"\nSurvived: "+msToTime(this.dtas.timeSurvived), {fontFamily: "Arial", fontSize: "32px", color: "#000000"}).setOrigin(0.5);
@@ -439,24 +439,24 @@ class GameScene extends Phaser.Scene {
                     this.socket.disconnect();
           this.scene.start("title");
       });this.playAgain.btn.setScale(Math.min(this.canvas.width/6533.33333333,this.canvas.height/5532.33333333));
- 
+
               this.playAgain.btn.y = this.statsText.y + this.statsText.displayHeight;
               this.playAgain.btn.x = this.canvas.width/2;
               this.playAgain.btn.x -= this.playAgain.btn.displayWidth/2;
-               
-                                                                                                                                                                                                                                          
+
+
             }
             if(this.spectating) return;
 
 						this.lvlBar.x = padding / 2;
-                
+
 						this.lvlBar.width = this.canvas.width- padding;
 						this.lvlBar.height = this.canvas.height / 30;
 						this.lvlBar.y = this.canvas.height - this.lvlBar.height - (this.canvas.height / 40);
 						this.lvlBar.draw();
 
 						this.lvlState.x = this.canvas.width / 2;
-					
+
 						this.lvlState.setFontSize(convert(1366, 50, this.canvas.width));
 						this.lvlState.y = this.lvlBar.y - (this.lvlState.height /2);
 
@@ -464,7 +464,7 @@ class GameScene extends Phaser.Scene {
 						this.playerCount.y = this.canvas.height - (this.miniMap.scaleFactor * 2 ) - 17;
 
 						this.lvlText.setFontSize(convert(1366, 75, this.canvas.width));
-            
+
 					} catch(e) {
 						console.log(e);
 					}
@@ -473,7 +473,7 @@ class GameScene extends Phaser.Scene {
 				var doit;
 
 				window.addEventListener("resize", function(){
-					clearTimeout(doit); 
+					clearTimeout(doit);
 					doit = setTimeout(resize, 100);
 				  });
 				//go packet
@@ -483,7 +483,7 @@ class GameScene extends Phaser.Scene {
 					closeOnBeforeunload: false,
           transports: ["websocket"]
 				});
-			
+
 				var showed = false;
 				function handleErr(err) {
 					if(showed) return;
@@ -496,15 +496,16 @@ class GameScene extends Phaser.Scene {
 
 				console.log(this.name);
 
-				if(!this.secret) this.socket.emit("go", this.name, thetoken, false, this.options);
-				else this.socket.emit("go", this.secret, thetoken, true,this.options);
+
+				if(!this.secret) this.socket.emit("go", this.name, thetoken, false, this.options, this.roomName);
+				else this.socket.emit("go", this.secret, thetoken, true,this.options, this.roomName);
 				//mouse down
 
-				
+
 
 				const mouseDown = (pointer) => {
 					if(this.mobile && this.joyStick &&this.joyStick.pointer && this.joyStick.pointer.id == pointer.id) return;
-			
+
 					if (!this.mouseDown) {
 						if(pointer) {
 						this.gamePoint = {x: pointer.x, y: pointer.y};
@@ -517,7 +518,7 @@ class GameScene extends Phaser.Scene {
 
 				const mouseUp = (pointer) => {
 					if(this.mobile && this.joyStick && this.joyStick.pointer && this.joyStick.pointer.id == pointer.id) return;
-				
+
 					if (this.mouseDown) {
 						if(pointer) {
 							this.gamePoint = {x: pointer.x, y: pointer.y};
@@ -526,27 +527,27 @@ class GameScene extends Phaser.Scene {
 						this.socket.emit("mouseDown", false);
 					}
 				};
-				
+
 					this.input.keyboard.on("keydown-SPACE", () => {
 						if(this.chat.toggled) return;
 						mouseDown();
 					}, this);
-						
+
 					this.input.keyboard.on("keyup-SPACE", () => {
 						mouseUp();
 					}, this);
 				this.input.on("pointerdown", function (pointer) {
 					if(pointer.rightButtonDown() && this.meSword.visible) this.socket.emit("throw");
 					else mouseDown(pointer);
-					
+
 				}, this);
 				this.input.on("pointerup", function (pointer) {
 						mouseUp(pointer);
 				}, this);
 
-			
 
-			
+
+
 
 				if(this.mobile) {
 					this.gamePoint = {x: 0, y: 0};
@@ -584,7 +585,7 @@ class GameScene extends Phaser.Scene {
 
                 this.socket.on("levels", (l)=>this.levels=l);
 								this.socket.on("flyingSwords", (swords) => {
-			
+
 									swords.forEach((sword) => {
 										if(!this.flyingSwords.has(sword.id)) {
 											var ability = false;
@@ -604,7 +605,7 @@ class GameScene extends Phaser.Scene {
 
 											var oldSword = this.flyingSwordsData.get(sword.id);
 											var obj = this.flyingSwords.get(sword.id);
-										
+
 											this.tweens.add({
 												targets: oldSword,
 												x: sword.x,
@@ -617,7 +618,7 @@ class GameScene extends Phaser.Scene {
 												var particles = this.add.particles("starParticle");
 
 												var emitter = particles.createEmitter({
-													
+
 													maxParticles: this.sys.game.loop.actualFps >= 60 ? 3 : this.sys.game.loop.actualFps >= 30 ? 2 : 1,
 													scale: 0.05
 												});
@@ -627,11 +628,11 @@ class GameScene extends Phaser.Scene {
 													return Math.floor(Math.random() * (max - min + 1)) + min;
 												}
 												emitter.setPosition(oldSword.x + getRandomInt(-10, 10), oldSword.y + getRandomInt(-10, 10));
-											
+
 												this.UICam.ignore(particles);
 												emitter.setSpeed(200);
 												particles.setDepth(105);
-										
+
 										}
 									}
 									});
@@ -642,15 +643,15 @@ class GameScene extends Phaser.Scene {
 											sword.destroy();
 										}
 									});
-								
+
 
 								});
 								this.socket.on("ability", (e) => {
 								//	console.log(e);
 									var [cooldown, duration, now] = e;
-									
+
 									duration -= Date.now() - now;
-									
+
 									this.tweens.addCounter({
 										from: 0,
 										to: (duration+cooldown)/1000,
@@ -665,11 +666,11 @@ class GameScene extends Phaser.Scene {
 									} else if(cooldown/1000 >= left) {
 										//cooldown
 										this.abilityButton.visible = false;
-										
+
 										this.ability.setText((left).toFixed(1));
 									} else {
 										this.abilityButton.visible = true;
-										
+
 									}
 										},
 										onComplete: () => {
@@ -702,17 +703,17 @@ class GameScene extends Phaser.Scene {
 						}).setDepth(71).setOrigin(0.5),
 						chatTween: undefined,
 					};
-         
-					
+
+
 					var factor = (100/(player.scale*100))*1.5;
-       
+
 					enemy.sword.angle = Math.atan2(player.mousePos.y - ((player.mousePos.viewport.height) / 2), player.mousePos.x - ((player.mousePos.viewport.width) / 2)) * 180 / Math.PI + 45;
-            
-            
+
+
 					enemy.sword.x = enemy.player.x + enemy.player.width / factor * Math.cos(enemy.sword.angle * Math.PI / 180);
 					enemy.sword.y = enemy.player.y + enemy.player.width / factor * Math.sin(enemy.sword.angle * Math.PI / 180);
 					enemy.bar.bar.setDepth(69);
-          
+
 					this.UICam.ignore([enemy.player, enemy.bar.bar, enemy.sword, enemy.nameTag,enemy.chatText, this.graphics]);
 					this.enemies.push(enemy);
 
@@ -749,7 +750,7 @@ class GameScene extends Phaser.Scene {
 				this.removePlayer = (id) => {
 					try {
 						var enemy = this.enemies.find(enemyPlayer => enemyPlayer.id == id);
-        
+
 
 
 						//fade out the enemy using tweens
@@ -771,8 +772,8 @@ class GameScene extends Phaser.Scene {
                 }
 							}
 						});
-								
-        
+
+
 					} catch (e) {
 						console.log(e);
 					}
@@ -783,17 +784,17 @@ class GameScene extends Phaser.Scene {
 					players.forEach(player => addPlayer(player));
 
 					this.ready = true;
-          
+
 					if(!this.ready) {
 						this.ready = true;
-          
+
 					}
 				});
 				this.socket.on("new", (player) => {
 					addPlayer(player);
 					if(!this.ready) {
 						this.ready = true;
-           
+
 					}
 				});
 				this.socket.on("me", (player) => {
@@ -801,7 +802,7 @@ class GameScene extends Phaser.Scene {
 					if(this.loadtext.visible) this.loadtext.destroy();
 					if(this.levels.length > 0) {
 						if(this.myObj?.evolutionQueue) {
-							if(this.myObj.evolutionQueue.length > 0) {						
+							if(this.myObj.evolutionQueue.length > 0) {
 								this.classPicker.setEvoQueue(this.myObj.evolutionQueue);
 								// console.log(this.myObj.evolutionQueue);
 								// console.log(this.classPicker)
@@ -811,7 +812,7 @@ class GameScene extends Phaser.Scene {
 										this.socket.emit("evolve", k);
 									});
 								}
-								
+
 							} else {
 								if(this.classPicker.shown) {
 								this.classPicker.clear();
@@ -823,7 +824,7 @@ class GameScene extends Phaser.Scene {
 							this.throwBtn.btn.setVisible(false);
 						}
 						else {
-							
+
 							this.meSword.setVisible(true);
 							this.throwBtn.btn.setVisible(true);
 						}
@@ -866,7 +867,7 @@ class GameScene extends Phaser.Scene {
 							ease: "Power2"
 						  }, this);
 
-					  
+
 					}
 				}
 					}
@@ -874,7 +875,7 @@ class GameScene extends Phaser.Scene {
 						var particles = this.add.particles("starParticle");
 
 						var emitter = particles.createEmitter({
-							
+
 							maxParticles: this.sys.game.loop.actualFps >= 60 ? 3 : this.sys.game.loop.actualFps >= 30 ? 2 : 1,
 							scale: 0.05
 						});
@@ -884,7 +885,7 @@ class GameScene extends Phaser.Scene {
 							return Math.floor(Math.random() * (max - min + 1)) + min;
 						}
 						emitter.setPosition(this.mePlayer.x+getRandomInt(-0.5*this.mePlayer.displayWidth, this.mePlayer.displayWidth/2),this.mePlayer.y+getRandomInt(-0.5*this.mePlayer.displayHeight, this.mePlayer.displayHeight/2));
-					
+
 						this.UICam.ignore(particles);
 						emitter.setSpeed(200);
 						particles.setDepth(105);
@@ -914,21 +915,21 @@ class GameScene extends Phaser.Scene {
 					this.meBar.maxValue = player.maxHealth;
 					this.meBar.setHealth(player.health);
 					// if(this.myObj) console.log( this.cameras.main.zoom+" -> "+this.myObj.coins+" -> "+player.scale)
-					
+
 					var show = 1000;
 					show += (this.mePlayer.width*this.mePlayer.scale)*5;
 					//var oldZoom = this.cameras.main.zoom;
 					var newZoom = Math.max(this.scale.width / show, this.scale.height / show);
  					this.cameras.main.setZoom(
 						newZoom
-					); 
-			
-	
+					);
+
+
 					this.meSword.setScale(player.scale);
 					  this.background.setTileScale(this.cameras.main.zoom, this.cameras.main.zoom);
 					this.background.displayWidth = this.cameras.main.displayWidth;
 					this.background.displayHeight = this.cameras.main.displayHeight;
-		
+
 
 					this.killCount.setText("[img=kill] " + player.kills+"\n[img=coin] "+player.coins);
 					this.myObj = player;
@@ -947,7 +948,7 @@ class GameScene extends Phaser.Scene {
 					}
 					if(!this.spectating) {
 					var miniMapPlayer = this.miniMap.people.find(x => x.id === player.id);
-            
+
 					miniMapPlayer.circle.x = (this.miniGraphics.x + ((player.pos.x / (map/2)) * this.miniMap.scaleFactor))+this.miniMap.scaleFactor;
 					miniMapPlayer.circle.y = (this.miniGraphics.y+ ((player.pos.y / (map/2)) * this.miniMap.scaleFactor)) + this.miniMap.scaleFactor;
 					var bruh = map / 10000;
@@ -960,7 +961,7 @@ class GameScene extends Phaser.Scene {
 					//update player
 					if (!this.ready) return;
 					try {
-               
+
 						var enemy = this.enemies.find(enemyPlayer => enemyPlayer.id == player.id);
 						if(!enemy) return;
 
@@ -1003,9 +1004,9 @@ class GameScene extends Phaser.Scene {
 
 						if(player.abilityActive && this.sys.game.loop.actualFps > 5) {
 							var particles = this.add.particles("starParticle");
-	
+
 							var emitter = particles.createEmitter({
-								
+
 								maxParticles: this.sys.game.loop.actualFps >= 60 ? 3 : this.sys.game.loop.actualFps >= 30 ? 2 : 1,
 								scale: 0.05
 							});
@@ -1015,13 +1016,13 @@ class GameScene extends Phaser.Scene {
 								return Math.floor(Math.random() * (max - min + 1)) + min;
 							}
 							emitter.setPosition(enemy.player.x+getRandomInt(-0.5*enemy.player.displayWidth, enemy.player.displayWidth/2),enemy.player.y+getRandomInt(-0.5*enemy.player.displayHeight, enemy.player.displayHeight/2));
-						
+
 							this.UICam.ignore(particles);
 							emitter.setSpeed(200);
 							particles.setDepth(105);
 						}
-            
-        
+
+
 
 						miniMapPlayer.circle.x = (this.miniGraphics.x + ((player.pos.x / (map/2)) * this.miniMap.scaleFactor))+this.miniMap.scaleFactor;
 						miniMapPlayer.circle.y = (this.miniGraphics.y+ ((player.pos.y / (map/2)) * this.miniMap.scaleFactor)) + this.miniMap.scaleFactor;
@@ -1029,7 +1030,7 @@ class GameScene extends Phaser.Scene {
 
 						miniMapPlayer.circle.radius = player.scale * (convert(1280, 15, this.canvas.width)/bruh);
 
-		
+
 
 					} catch (e) {
 						console.log(e);
@@ -1064,7 +1065,7 @@ class GameScene extends Phaser.Scene {
 					});
 
 				},
-				
+
 				ease: "Power2"
 			});
 
@@ -1157,7 +1158,7 @@ class GameScene extends Phaser.Scene {
 						}
 						this.lastKill = Date.now();
 				}
-				
+
 
 				this.removePlayer(id);
 
@@ -1169,12 +1170,12 @@ class GameScene extends Phaser.Scene {
 						var particles = this.add.particles("hitParticle");
 
 						var emitter = particles.createEmitter({
-							
+
 							maxParticles: 5,
 							scale: 0.01
 						});
 						emitter.setPosition(pPos?pPos.x : player.player.x, pPos? pPos.y : player.player.y);
-					
+
 						this.UICam.ignore(particles);
 						emitter.setSpeed(200);
 						particles.setDepth(105);
@@ -1188,12 +1189,12 @@ class GameScene extends Phaser.Scene {
 					var particles = this.add.particles("hitParticle");
 
 					var emitter = particles.createEmitter({
-						
+
 						maxParticles: 5,
 						scale: 0.01
 					});
 					emitter.setPosition(this.mePlayer.x,this.mePlayer.y);
-				
+
 					this.UICam.ignore(particles);
 					emitter.setSpeed(200);
 					particles.setDepth(105);
@@ -1209,7 +1210,7 @@ class GameScene extends Phaser.Scene {
 						start = [coin.pos.x, coin.pos.y];
 						anim = false;
 					}
-					
+
 					this.coins.push(
 						{
 							id: coin.id,
@@ -1229,7 +1230,7 @@ class GameScene extends Phaser.Scene {
 						}
 					this.UICam.ignore(this.coins[this.coins.length - 1].item);
 				};
-				
+
 
 				const addChest = (chest,start) => {
 					if(this.dead) return;
@@ -1238,7 +1239,7 @@ class GameScene extends Phaser.Scene {
 						start = [chest.pos.x, chest.pos.y];
 						anim = false;
 					}
-					
+
 					this.chests.push(
 						{
 							id: chest.id,
@@ -1260,7 +1261,7 @@ class GameScene extends Phaser.Scene {
 
 				this.socket.on("coins", (coinsArr) => {
 				//	console.log("recieved coins", coinsArr.length);
-           
+
 					coinsArr.forEach((coin) => {
 						if(this.coins.filter(e => e.id == coin.id).length == 0) {
 							addCoin(coin);
@@ -1269,13 +1270,13 @@ class GameScene extends Phaser.Scene {
 
 					var remove = this.coins.filter(e=>coinsArr.filter(b => (e.id == b.id) && (!e.state.collected)).length == 0);
 					remove.forEach((coin) => {
-               
+
 						coin.item.destroy();
 					});
 					this.coins = this.coins.filter(e=>coinsArr.filter(b => (e.id == b.id) && (!e.state.collected)).length == 1);
 				});
 
-				this.socket.on("coin", (coin, start) => {      
+				this.socket.on("coin", (coin, start) => {
 					if(Array.isArray(coin)) {
 						if(start) {
 						coin.forEach((x) => {
@@ -1286,14 +1287,14 @@ class GameScene extends Phaser.Scene {
 							addCoin(x);
 						});
 					}
-					} else {      
+					} else {
 						addCoin(coin);
 					}
 				});
 
 
 				this.socket.on("chests", (chestsArr) => {
-           
+
 					chestsArr.forEach((chest) => {
 						if(this.chests.filter(e => e.id == chest.id).length == 0) {
 							addChest(chest);
@@ -1302,13 +1303,13 @@ class GameScene extends Phaser.Scene {
 
 					var remove = this.chests.filter(e=>chestsArr.filter(b => (e.id == b.id)).length == 0);
 					remove.forEach((chest) => {
-               
+
 						chest.item.destroy();
 					});
 					this.chests = this.chests.filter(e=>chestsArr.filter(b => (e.id == b.id)).length == 1);
 				});
 
-				this.socket.on("chest", (chest, start) => {      
+				this.socket.on("chest", (chest, start) => {
 					if(Array.isArray(chest)) {
 						if(start) {
 						chest.forEach((x) => {
@@ -1319,7 +1320,7 @@ class GameScene extends Phaser.Scene {
 							addChest(x);
 						});
 					}
-					} else {      
+					} else {
 						addChest(chest);
 					}
 				});
@@ -1336,7 +1337,7 @@ class GameScene extends Phaser.Scene {
             timeSurvived: data.timeSurvived
           };
 					this.spectating = true;
-					
+
 					this.mePlayer.destroy();
 					this.meBar.destroy();
 					this.meSword.destroy();
@@ -1368,14 +1369,14 @@ class GameScene extends Phaser.Scene {
       seconds = Math.floor((duration / 1000) % 60),
       minutes = Math.floor((duration / (1000 * 60)) % 60),
       hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
-  
-  
+
+
     return (hours == "00"?"": hours+"h ") + (minutes == "00"?"": minutes+"m ") + seconds+"s";
   }
 
 					//wait 1.5 sec
 					this.time.delayedCall(1500, () => {
-						
+
 						//show death screen
 						this.deathRect = this.add.rectangle(this.canvas.width/2, this.canvas.height/2, this.canvas.width/2, this.canvas.height/1.5, 0x90EE90).setAlpha(0);
             this.cameras.main.ignore(this.deathRect);
@@ -1390,12 +1391,12 @@ class GameScene extends Phaser.Scene {
                 this.cameras.main.ignore(this.deadText);
 								this.deadText.setFontSize(Math.min(this.canvas.width/25,this.canvas.height/20));
 								this.deadText.y += this.deadText.height;
-                
+
 																var msgs = ["Nooooooooo", "Rest in peace", "You can do better!", "Practice makes perfect!", "Keep trying!"];
 								var msg = msgs[Math.floor(Math.random() * msgs.length)];
 								this.dataText = this.add.text(this.canvas.width/2, this.deadText.y, msg, {fontFamily: "Arial", fontSize: "32px", color: "#000000"}).setOrigin(0.5);
 								this.dataText.setFontSize(Math.min(this.canvas.width/40, this.canvas.height/30));
-					
+
 							this.dataText.y += this.dataText.height*1.5;
                  this.cameras.main.ignore(this.dataText);
 
@@ -1408,7 +1409,7 @@ class GameScene extends Phaser.Scene {
       this.playAgain = new ImgButton(this, 0,0, "playAgainBtn",()=>{
         this.callback();
         this.socket.disconnect();
-        
+
           this.scene.start("title");
       });this.playAgain.btn.setScale(Math.min(this.canvas.width/6533.33333333,this.canvas.height/5532.33333333));
                 this.cameras.main.ignore(this.playAgain.btn);
@@ -1416,7 +1417,7 @@ class GameScene extends Phaser.Scene {
                           this.playAgain.btn.y = this.statsText.y + this.statsText.displayHeight;
               this.playAgain.btn.x = this.canvas.width/2;
               this.playAgain.btn.x -= this.playAgain.btn.displayWidth/2;
-               
+
 
 			this.tweens.addCounter({
 				from: 0,
@@ -1424,25 +1425,25 @@ class GameScene extends Phaser.Scene {
 				duration: 1000,
 				onUpdate:  (tween)=>
 				{
-					
+
 					//  tween.getValue = range between 0 and 360
-		
+
 					var coins = Math.round(this.myObj.coins * (tween.getValue()/100));
           var kills = Math.round(this.myObj.kills * (tween.getValue()/100));
           var time = Math.round(data.timeSurvived * (tween.getValue()/100));
 
           this.statsText.setText("Stabbed By: "+data.killedBy+"\nCoins: "+coins+"\nKills: "+kills+"\nSurvived: "+msToTime(time));
-          
-				
+
+
 				}
-			});    
+			});
 						}
 						});
 
 					});
 
-					
-					
+
+
 
 				});
 				this.socket.on("youWon", (data) => {
@@ -1454,7 +1455,7 @@ class GameScene extends Phaser.Scene {
 					}
 					// eslint-disable-next-line semi
 					if(this.coins.find(coin => coin.id == coinId)) this.coins.find(coin => coin.id == coinId).state = {collected: true, collectedBy: playerId, time: 0}
-					else if(this.chests.find(chest => chest.id == coinId)) { 
+					else if(this.chests.find(chest => chest.id == coinId)) {
 						if(this.sys.game.loop.actualFps < 30) this.chests.find(chest => chest.id == coinId).item.destroy();
 						else this.tweens.add({
 						targets: this.chests.find(chest => chest.id == coinId).item,
@@ -1498,7 +1499,7 @@ try {
   console.log("Failed to update level bar");
   console.log(e);
 }
-       
+
 		var controller = {
 			left: false,
 			up: false,
@@ -1512,7 +1513,7 @@ try {
 		var sKey = this.input.keyboard.addKey("S", false);
 		var dKey = this.input.keyboard.addKey("D",false);
 		var cKey = this.input.keyboard.addKey("C", false);
-		
+
 		try {
 			this.key = this.mobile && this.joyStick ?  this.joyStick.createCursorKeys() : this.cursors;
 			if (this.key.up.isDown || wKey.isDown ) {
@@ -1534,15 +1535,15 @@ try {
 			if (cKey.isDown && this.meSword.visible && !this.chat.toggled) {
 				this.socket.emit("throw");
 			}
-    
+
 			this.socket.emit("move", controller);
 		} catch(e) {
 			console.log(e);
 		}
 		// this.lastMove = Date.now()
-		//sword 
+		//sword
 
-               
+
 		if(this.meSword) var old = this.meSword.angle;
 
 		if(!this.mobile) var mousePos = this.input;
@@ -1558,8 +1559,8 @@ try {
 			if(this.swordAnim.added <= 0) this.swordAnim.go = true;
 		}
 		else if(this.swordAnim.added >= 50) this.swordAnim.go = false;
-        
-        
+
+
 		if(this.swordAnim.go) {
 
 
@@ -1575,7 +1576,7 @@ try {
 		var cooldown = (this.myObj ? this.myObj.damageCooldown : 120);
 		if(this.mouseDown && !this.swordAnim.go && this.swordAnim.added == 0) {
 			this.swordAnim.go = true;
-	
+
 
 			this.tweens.addCounter({
 				from: 0,
@@ -1583,11 +1584,11 @@ try {
 				duration: cooldown/2,
 				onUpdate:  (tween)=>
 				{
-					
+
 					//  tween.getValue = range between 0 and 360
-		
+
 					this.swordAnim.added = tween.getValue();
-				
+
 				},
 				onComplete: ()=>
 				{
@@ -1597,7 +1598,7 @@ try {
 			});
 		} else if(!this.swordAnim.go && !this.mouseDown && this.swordAnim.added > 0) {
 			this.swordAnim.go = true;
-	
+
 
 			this.tweens.addCounter({
 				from: 50,
@@ -1615,7 +1616,7 @@ try {
 			});
 		}
         this.meSword.angle -= this.swordAnim.added;
-        
+
 		var mousePos2 = {
 			viewport: {
 				width: this.canvas.width,
@@ -1628,7 +1629,7 @@ try {
 		if (this.socket && old && this.meSword.angle != old) this.socket.emit("mousePos", mousePos2);
 
 		var fps = this.sys.game.loop.actualFps;
-   
+
 		//var difference = function (a, b) { return Math.abs(a - b); }
 		function lerp (start, end, amt){
 			return (1-amt)*start+amt*end;
@@ -1644,14 +1645,14 @@ try {
 		}
 		this.enemies.forEach(enemy => {
 			if(Date.now() - enemy.lastTick > 10000) return this.removePlayer(enemy);
-		
+
 			if(enemy.playerObj) var scale = enemy.playerObj.scale;
 			else var scale = 0.25;
 			enemy.bar.width = (enemy.player.height*scale / 0.9375);
 			enemy.bar.height = (enemy.player.height*scale*0.150);
 			enemy.bar.x = enemy.player.x  - enemy.bar.width / 2;
 			enemy.bar.y = enemy.player.y - (enemy.player.height*scale/1.2);
-		
+
 
 			enemy.bar.draw();
 			try {
@@ -1675,8 +1676,8 @@ try {
 			}         enemy.sword.angle = lerpTheta(enemy.sword.angle, enemy.toAngle, 0.5);
 			enemy.player.angle = enemy.sword.angle + 45 + 180;
 
-			
-		
+
+
 
 			if (enemy.down) {
 				if(!enemy.swordAnim.added) enemy.swordAnim.added = 0;
@@ -1693,18 +1694,18 @@ try {
 
 			}
 			enemy.sword.angle -= enemy.swordAnim.added;
-               
+
 
 			enemy.sword.x = enemy.player.x + enemy.player.width / factor * Math.cos(enemy.sword.angle * Math.PI / 180);
 			enemy.sword.y = enemy.player.y + enemy.player.width / factor * Math.sin(enemy.sword.angle * Math.PI / 180);
 
 
-                
+
 		});
- 
-	
+
+
 		var myObj = this.myObj;
-  
+
 		if(!myObj) myObj = {scale: 0.25};
 		try {
 		this.meBar.width = (this.mePlayer.height*myObj.scale / 0.9375);
@@ -1715,7 +1716,7 @@ try {
 		this.meChat.x = this.mePlayer.x;
 		this.meChat.y = this.meBar.y - this.meBar.height;
 		this.meBar.draw();
-		if(this.myObj) { 
+		if(this.myObj) {
 			var factor1 = (100/(this.myObj.scale*100))*1.5;
 		} else {
 			var factor1 = 6;
@@ -1732,7 +1733,7 @@ try {
 
 		//leaderboard
 		if(!this.myObj) return;
-        
+
 		var enemies = this.enemies.filter(a=>a.hasOwnProperty("playerObj") && a.playerObj);
 
 		enemies.push({playerObj: this.myObj});
@@ -1750,13 +1751,13 @@ try {
 					var rankingColors = [
 						{color: "#90EE90", ranking: 100},
 						{color: "#023020", ranking: 50},
-	
+
 						{color: "#ffff00", ranking: 10},
-	
+
 						{color: "#ffa500", ranking: 5},
-	
+
 						{color: "#ff0000", ranking: 1},
-	
+
 					];
 				var rankingColor;
 				if(playerObj.ranking) {
@@ -1764,7 +1765,7 @@ try {
 						if(playerObj.ranking <= d.ranking) {
 
 							rankingColor = d.color;
-							
+
 						}
 					});
 				}
@@ -1793,7 +1794,7 @@ try {
 					console.log(d.color);
 
 							rankingColor = d.color;
-							
+
 						}
 					});
 				}
@@ -1804,7 +1805,7 @@ try {
 			}
 			if(!this.spectating) {
 			this.leaderboard.setText(text);
-			
+
 			this.leaderboard.x = this.canvas.width - this.leaderboard.width - 15;
 			this.throwBtn.btn.setScale(this.chat.btn.btn.scale/2);
 			this.throwBtn.btn.y = this.miniGraphics.y+10	;
@@ -1816,14 +1817,14 @@ try {
 			console.log(e);
 		}
 		//playercount
-		
+
 		try {
 		if(!this.spectating)	this.playerCount.setText("Players: " + (Object.keys(this.enemies).length + 1).toString() + (this.canvas.height<550 ? "" : "\nFPS: " + Math.round(this.sys.game.loop.actualFps)+"\nTPS: "+this.tps+"\nPing: "+this.ping+" ms"));
 		} catch(e) {
 			console.log(e);
 		}
 		if(!this.myObj) return;
-		const distance = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1); 
+		const distance = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
 		this.coins.forEach((coin) => {
 			if(coin.state.collected) {
 				if(coin.state.collectedBy == this.myObj.id) {
@@ -1852,7 +1853,7 @@ try {
 					coin.item.destroy();
 					this.coins = this.coins.filter((el) => el.id != coin.id);
 				}
-                
+
 			}
 		});
 

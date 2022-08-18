@@ -24,7 +24,7 @@
         font-family: courier, cursive;
         font-size: 130px;
       }
-      .container {
+      /*.container {
         position: absolute;
         margin: 0px;
         top: 0%;
@@ -32,7 +32,7 @@
         -moz-transform: translateX(-50%) translateY(-30%);
         -webkit-transform: translateX(-50%) translateY(-30%);
         transform: translateX(-50%) translateY(-20%);
-      }
+      }*/
 
       .form {
         position: absolute;
@@ -42,6 +42,9 @@
         -moz-transform: translateX(-50%) translateY(-60%);
         -webkit-transform: translateX(-50%) translateY(-60%);
         transform: translateX(-50%) translateY(10%);
+        display: flex;
+        justify-content: space-between;
+        width: max-content;
       }
 
       .textbox {
@@ -157,8 +160,13 @@
         color: black;
       }
 
-      #box,
-      #play-btn {
+      .container {
+        margin: 10px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /*#play-btn {
         padding: 3%;
         margin: 1%;
         border-radius: 10px;
@@ -172,17 +180,61 @@
 
       #play-btn {
         padding: 3% 8% 3% 8%;
+      }*/
+      .input-box {
+        height: 40px;
+        flex-basis: 100%;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        font-size: 1.5rem;
+        padding: 0px 10px;
       }
+
+      .start-button {
+        padding: 3% 8% 3% 8%;
+        border-radius: 10px;
+        border: none;
+        font-size: 1.5rem;
+        background-color: #4caf50;
+        color: #ffffff;
+      }
+
+      .start-button:hover {
+        background-color: #ffffff;
+        color: #4caf50;
+      }
+
     </style>
   </head>
 
   <script src="script.js"></script>
   <body>
-    <div class="form" id="input-form">
+    <!--<div class="form" id="input-form">
       <input id="box" class="textbox" name="name" size="20" maxlength="16"
       value="" placeholder='Enter Name'/ >
       <br /><br /><br /><br />
       <button id="play-btn" name="btn" class="button size">Play!</button>
+      <br/><br/><br/><br/>
+      <input id="box" class="textbox" name="roomName" size="20" maxlength="16"
+      value="main" placeholder='Enter Room'/ >
+      <button id="private-btn" name="privateBtn" class="button size">Join Private Room</button>
+    </div>-->
+
+    <div class="form">
+      <div class="container">
+        <input id="name" class="input-box" name="name" size="20" maxlength="16"
+      value="" placeholder='Enter Name' />
+        <br />
+        <button id="play-button" class="start-button" name="playButton">Play!</button>
+      </div>
+
+      <div class="container">
+        <input id="room-name" class="input-box" name="roomName" size="20" maxlength="16"
+      value="" placeholder='Enter Room' />
+      <br />
+        <button id="join-private-room" class="start-button" name="joinPrivateRoom">Join Private Room</button>
+      </div>
     </div>
+
   </body>
 </html>

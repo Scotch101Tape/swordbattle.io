@@ -8,8 +8,9 @@ function getRandomInt(min, max) {
 var map = 10000;
 const evolutions = require("./evolutions");
 
-class Player { 
-  constructor(id, name) {
+class Player {
+  constructor(id, name, roomName) {
+    this.roomName = roomName
     this.ai = false;
     this.ranking = false;
     this.movementMode = "mouse";
@@ -41,8 +42,8 @@ class Player {
 
     this.ability = 0;
     this.abilityActive = false;
-    
-   this.skin = "player";
+
+    this.skin = "player";
     this.levelScale = 0.25;
 
     this.resistance = 20;
@@ -62,13 +63,13 @@ class Player {
   }
   moveWithMouse() {
 
-  if(Date.now() - this.lastMove > 5000) this.lastMove = (Date.now() - 1000); 
+  if(Date.now() - this.lastMove > 5000) this.lastMove = (Date.now() - 1000);
     var since =( Date.now() - this.lastMove ) / 1000;
-    
-    
+
+
     var go = since * this.speed;
 
-    const distance = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1); 
+    const distance = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
 
     var power = distance(this.mousePos.x, this.mousePos.y, this.mousePos.viewport.width/2, this.mousePos.viewport.height/2);
 power = (power/((this.mousePos.viewport.height+this.mousePos.viewport.width)/2))*100;
@@ -80,10 +81,10 @@ if(power < 15)  power = 0;
 go *= power/100;
 
         const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
-    
+
 
     var pos = this.movePointAtAngle([this.pos.x, this.pos.y], (this.calcSwordAngle()+45)*Math.PI/180 , go);
-    
+
     this.pos.x = clamp(pos[0], -(map/2), map/2);
     this.pos.y = clamp(pos[1],-(map/2), map/2);
 
@@ -92,13 +93,13 @@ go *= power/100;
   }
   move(controller) {
     function getCardinal(angle) {
-      /** 
+      /**
        * Customize by changing the number of directions you have
        * We have 8
        */
       const degreePerDirection = 360 / 8;
-    
-      /** 
+
+      /**
        * Offset the angle by half of the degrees per direction
        * Example: in 4 direction system North (320-45) becomes (0-90)
        */
@@ -128,13 +129,13 @@ go *= power/100;
                     : -90;
     }
 
-    var players = Object.values(PlayerList.players);
+    var players = Object.values(PlayerList.rooms[this.roomName].players);
   //  console.log(this.id+" => ("+this.pos.x+", "+this.pos.y+")")
-  if(Date.now() - this.lastMove > 5000) this.lastMove = (Date.now() - 1000); 
+  if(Date.now() - this.lastMove > 5000) this.lastMove = (Date.now() - 1000);
     var since =( Date.now() - this.lastMove ) / 1000;
-    
+
         const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
-    
+
     var go = since * this.speed;
     if(this.movementMode == "keys") {
 
@@ -154,7 +155,7 @@ var move = true;
    } else if(controller.left) {
       moveAngle -= 45;
    }
-      
+
     } else if(controller.down) {
        moveAngle = 180;
 
@@ -163,7 +164,7 @@ var move = true;
    } else if(controller.left) {
       moveAngle += 45;
    }
-   
+
     } else if(controller.left) {
       var moveAngle = -90;
     } else if(controller.right) {
@@ -173,10 +174,10 @@ var move = true;
       move = false;
     }
 
-    
+
 
     var pos = this.movePointAtAngle([this.pos.x, this.pos.y], (moveAngle)*Math.PI/180 , go);
-    
+
     if(move) {
     this.pos.x = clamp(pos[0], -(map/2), map/2);
     this.pos.y = clamp(pos[1],-(map/2), map/2);
@@ -187,7 +188,7 @@ var move = true;
     if(this.pos.y <= -(map/2)) this.pos.y = -(map/2);
     if(this.pos.y >= map/2) this.pos.y = map/2;
 
-    moveAngle = getCardinal(moveAngle);  
+    moveAngle = getCardinal(moveAngle);
 
     } else {
       var moveAngle = getCardinal(this.moveWithMouse());
@@ -196,12 +197,12 @@ var move = true;
 
       var times = 0;
       while (players.filter(player=> player && player.id != this.id && player.touchingPlayer(this)).length > 0 && times <10) {
-      times++;
+        times++;
         var p = this.movePointAtAngle([this.pos.x, this.pos.y], (moveAngle)*180/Math.PI , go==0?this.speed/10:go);
-      this.pos.x = p[0];
-      this.pos.y = p[1];
+        this.pos.x = p[0];
+        this.pos.y = p[1];
       }
-    
+
 
     this.lastMove = Date.now();
     PlayerList.updatePlayer(this);
@@ -214,11 +215,11 @@ var move = true;
   }
   doKnockback(player, angle=player.calcSwordAngle()) {
     const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
-    
+
     var oldPos = this.pos;
 
   var pos = this.movePointAtAngle([this.pos.x, this.pos.y], (angle+45)*Math.PI/180 , Math.max(player.power-this.resistance,50));
-    
+
     this.pos.x = clamp(pos[0], -(map/2), map/2);
     this.pos.y = clamp(pos[1],-(map/2), map/2);
 
@@ -227,7 +228,7 @@ var move = true;
     }
   }
   collectCoins(coins, io, levels) {
-    
+
 
            var touching = coins.filter((coin) => coin.touchingPlayer(this));
 
@@ -236,7 +237,7 @@ var move = true;
           this.coins+= coin.value;
           if(this.level <= levels.length && this.coins >= levels[this.level-1].coins) {
             //lvl up!
-  
+
 
             var oldLevel = this.level;
           var levelsPassed = [];
@@ -249,12 +250,12 @@ var move = true;
                     this.levelScale = level.scale;
                   }
                 });
-              
+
                 var evoLevels = levelsPassed.slice(oldLevel-this.level).filter(level => level.evolutions)?.map((e)=>e.evolutions).map((e)=>e.map((f)=>f.name));
                 this.evolutionQueue = [...this.evolutionQueue, ...evoLevels].filter((e)=>e);
-              
-              
-            
+
+
+
           }
 
 
@@ -270,7 +271,7 @@ var move = true;
   }
   hittingPlayer(player) {
 
-  
+
   var deep = 0;
   var angles = [-5,0,5,10,15,25,30,35,40,45, 50,55];
 
@@ -278,7 +279,7 @@ var move = true;
 
     var angle = this.calcSwordAngle();
     angle -= increment;
-   
+
     var sword = {x: 0, y: 0};
     var factor = (100/(this.scale*100))*1.5;
     sword.x = this.pos.x + (this.size / factor * Math.cos(angle * Math.PI / 180));
@@ -288,7 +289,7 @@ var move = true;
   var base = this.movePointAtAngle([sword.x, sword.y], ((angle+45) * Math.PI / 180), (this.radius*this.scale)*-1.5);
 
                           //get the values needed for line-circle-collison
-                       
+
                           var radius = player.radius *player.scale;
 
                           //check if enemy and player colliding
@@ -334,7 +335,7 @@ return false;
       } else this.abilityActive = false;
     }
 
-    if(!this.swordInHand) { 
+    if(!this.swordInHand) {
       this.speed *= 1.5;
    this.resistance /= 1.5;
  this.maxHealth /= 1.5;
@@ -359,11 +360,11 @@ return false;
     if(this.ai) {
       this.target = this.getClosestEntity(this.getEntities(coins));
       PlayerList.updatePlayer(this);
-    } 
+    }
     if(enemy.ai) {
       enemy.target = enemy.getClosestEntity(coins);
     PlayerList.updatePlayer(enemy);
-    } 
+    }
 
 
     if(Date.now() - enemy.joinTime >= 5000) {
@@ -384,15 +385,15 @@ return false;
       //tell clients that this enemy died
       if(!enemy.ai && socketById) {
 
-        
-        
+
+
       socketById.emit("youDied", {
         killedBy: this.name,
         killerVerified: this.verified,
         killedById: this.id,
         timeSurvived: Date.now() - enemy.joinTime,
       });
-    
+
       socketById.broadcast.emit("playerDied", enemy.id, {
         killedBy: {id: this.id, name: this.name},
       });
@@ -424,7 +425,7 @@ return false;
       }
 
         io.sockets.emit("coin", drop, [enemy.pos.x, enemy.pos.y]);
-      
+
       //log a message
       console.log(this.name+" killed " + enemy.name);
 
@@ -448,12 +449,12 @@ return false;
   checkCollisions(coins, chests, io) {
     //hit cooldown
 
-        
+
     if (this.mouseDown && Date.now() - this.lastSwing > this.damageCooldown) {
       this.lastSwing = Date.now();
-      Object.values(PlayerList.players).forEach((enemy) => {
+      Object.values(PlayerList.rooms[this.roomName].players).forEach((enemy) => {
         //loop through all enemies, make sure the enemy isnt the player itself
-        if (enemy && enemy.id != this.id && !PlayerList.deadPlayers.includes(enemy.id)) {
+        if (enemy && enemy.id != this.id && !PlayerList.rooms[this.roomName].deadPlayers.includes(enemy.id)) {
           //get the values needed for line-circle-collison
           //check if enemy and player colliding
           if (
@@ -472,10 +473,10 @@ return false;
               //remove the chest
               chests.splice(chests.indexOf(chest), 1);
               io.sockets.emit("collected", chest.id, this.id, false);
-    
+
               //drop coins at that spot
               var drop = chest.open();
-    
+
               io.sockets.emit("coin", drop, [chest.pos.x+(chest.width/2), chest.pos.y+(chest.height/2)]);
                 coins.push(...drop);
             }
@@ -489,15 +490,15 @@ return false;
 
       var angle = this.calcSwordAngle();
       angle -= increment;
-     
+
       var sword = {x: 0, y: 0};
       var factor = (100/(this.scale*100))*1.5;
       sword.x = this.pos.x + (this.size / factor * Math.cos(angle * Math.PI / 180));
       sword.y = this.pos.y + (this.size/ factor * Math.sin(angle * Math.PI / 180));
-  
+
     var tip = this.movePointAtAngle([sword.x, sword.y], ((angle+45) * Math.PI / 180), (this.radius*this.scale));
     var base = this.movePointAtAngle([sword.x, sword.y], ((angle+45) * Math.PI / 180), (this.radius*this.scale)*-1.5);
-  
+
         if( intersects.lineBox(tip[0], tip[1], base[0], base[1], chest.pos.x, chest.pos.y, chest.width, chest.height)) return true;
     }
   return false;

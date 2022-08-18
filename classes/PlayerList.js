@@ -1,35 +1,55 @@
-
 class PlayerList {
+  static MAIN_ROOM_NAME = "main"
+  static rooms = {
+    [PlayerList.MAIN_ROOM_NAME]: {
+      players: {},
+      deadPlayers: [],
+    }
+  }
+  static allPlayers = {}
+
+  static newRoom(roomName) {
+    this.rooms[roomName] = {
+      players: {},
+      deadPlayers: []
+    }
+  }
 
   static getPlayer(id) {
-    if(this.players.hasOwnProperty(id)) return this.players[id];
+    if(this.allPlayers.hasOwnProperty(id)) return this.allPlayers[id];
     else return undefined;
   }
   static setPlayer(id, player) {
-    this.players[id] = player;
+    this.allPlayers[id] = player;
+    this.rooms[player.roomName].players[id] = player;
   }
   static deletePlayer(id) {
-    if(this.players.hasOwnProperty(id)) {
-      this.players[id] = null;
-      delete this.players[id];
-      this.deadPlayers.push(id);
+    if(this.allPlayers.hasOwnProperty(id)) {
+      let deleteingPlayer = this.allPlayers[id]
+      delete this.allPlayers[id];
+      delete this.rooms[deleteingPlayer.roomName].players[id];
+      this.rooms[deleteingPlayer.roomName].deadPlayers.push(id);
      //  console.log("kjifjgkjifjgkjifjgkjifjgkjifjgkjifjgkjifjgkjifjgvvvvvvvvvvv")
+     // ok gautum... 🤣 - scotch101tape
     }
   }
   static has(id) {
-    return this.players.hasOwnProperty(id);
+    return this.allPlayers.hasOwnProperty(id);
   }
   static updatePlayer(player) {
-    this.players[player.id] = player;
+    this.setPlayer(player.id, player)
   }
   static clean() {
-    Object.filter = (obj, predicate) => 
-    Object.keys(obj)
-          .filter( key => predicate(obj[key]) )
-          .reduce( (res, key) => (res[key] = obj[key], res), {} );
-    this.players = Object.filter(this.players,(p => !this.deadPlayers.includes(p.id)));
+    for (const roomName in this.rooms) {
+      const room = this.rooms[roomName]
+      for (const playerId in room.players) {
+        if (room.deadPlayers.includes(playerId)) {
+          delete room.players[playerId]
+          delete this.allPlayers[playerId]
+        }
+      }
+    }
   }
 }
-PlayerList.players = {};
-PlayerList.deadPlayers = [];
+
 module.exports = PlayerList;

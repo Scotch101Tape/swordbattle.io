@@ -5,9 +5,10 @@ function getRandomInt(min, max) {
     return min + Math.floor(Math.random() * (max - min + 1));
 }
   var ID = function () {
+    // I'm scared 😭
     return "_" + Math.random().toString(36).substr(2, 9);
   };
-  class Chest { 
+  class Chest {
     constructor(pos = {x: getRandomInt(-(map/2)+352,(map/2)-223), y: getRandomInt(-(map/2)+352,(map/2)-223)}) {
       this.id = ID();
       this.width = 352;
@@ -16,7 +17,7 @@ function getRandomInt(min, max) {
       this.width *= this.scale;
       this.height *= this.scale;
       this.pos = pos;
-      
+
     }
     touchingPlayer(player) {
       var rey = player.radius * player.scale * 1.2;
@@ -34,5 +35,5 @@ function getRandomInt(min, max) {
     }
 
   }
-  
+
   module.exports = Chest;

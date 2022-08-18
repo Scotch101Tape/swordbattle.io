@@ -9,6 +9,7 @@ class TitleScene extends Phaser.Scene {
     this.playPreroll = playPreroll;
     this.callback = callback;
   }
+
   preload() {
     try {
       document.getElementsByClassName("grecaptcha-badge")[0].style.opacity = 100;
@@ -25,6 +26,7 @@ class TitleScene extends Phaser.Scene {
 
 
   }
+
   create() {
     this.optimalServer = "us2";
 
@@ -152,7 +154,7 @@ class TitleScene extends Phaser.Scene {
     this.footer = this.add.dom(this.canvas.width / 2, this.canvas.height).createFromCache("footer").setOrigin(0.5).setScale(this.mobile ? 1 : 2);
 
 
-    this.nameBox = this.add.dom(this.canvas.width / 2, 0).createFromCache("title");
+    this.infoBox = this.add.dom(this.canvas.width / 2, 0).createFromCache("title");
 
     if (this.showPromo) {
 
@@ -168,8 +170,8 @@ class TitleScene extends Phaser.Scene {
 
     }
 
-    if (access) this.nameBox.getChildByName("name").value = window.localStorage.getItem("oldName") ? window.localStorage.getItem("oldName") : "";
-    else this.nameBox.getChildByName("name").value = "";
+    if (access) this.infoBox.getChildByName("name").value = window.localStorage.getItem("oldName") ? window.localStorage.getItem("oldName") : "";
+    else this.infoBox.getChildByName("name").value = "";
 
 
     this.done = false;
@@ -245,9 +247,10 @@ class TitleScene extends Phaser.Scene {
 
     });
 
-
-    const go = () => {
-      let name = this.nameBox.getChildByName("name");
+    const goPrivateRoom = () => {
+      let roomNameElement = this.infoBox.getChildByName("roomName")
+      let roomName = roomNameElement.value == "" ? undefined : roomNameElement.value
+      let name = this.infoBox.getChildByName("name");
 
       // let name ={value: "hi"}
       if (!name) return;
@@ -260,8 +263,8 @@ class TitleScene extends Phaser.Scene {
 
         if (this.playPreroll) {
           if (typeof aiptag.adplayer !== "undefined") {
-            this.nameBox.getChildByName("btn").innerHTML = "Connecting..";
-            this.nameBox.getChildByName("btn").style.backgroundColor = "grey";
+            this.infoBox.getChildByName("playButton").innerHTML = "Connecting..";
+            this.infoBox.getChildByName("playButton").style.backgroundColor = "grey";
             this.music.stop();
 
             aiptag.cmd.player.push(() => {
@@ -280,9 +283,9 @@ class TitleScene extends Phaser.Scene {
                    from the page, it will be hidden automaticly.
                    If you do want to remove it use the AIP_REMOVE callback.
                   */
-                  this.nameBox.destroy();
+                  this.infoBox.destroy();
                   document.getElementById("game").focus();
-                  this.callback(myName, this.music, this.secret);
+                  this.callback(myName, this.music, this.secret, roomName);
 
                   console.log("Preroll Ad Completed: " + evt);
                 }
@@ -292,44 +295,107 @@ class TitleScene extends Phaser.Scene {
               aiptag.adplayer.startPreRoll();
             });
           } else {
-            this.nameBox.destroy();
+            this.infoBox.destroy();
 
-            this.callback(myName, this.music, this.secret);
+            this.callback(myName, this.music, this.secret, roomName);
           }
         } else {
 
-          this.nameBox.destroy();
-          this.callback(myName, this.music, this.secret);
+          this.infoBox.destroy();
+          this.callback(myName, this.music, this.secret, roomName);
+        }
+      }
+    }
+
+
+    const go = () => {
+      let name = this.infoBox.getChildByName("name");
+
+      // let name ={value: "hi"}
+      if (!name) return;
+      else if (name.value == "") return;
+      else if (this.done) return;
+      else {
+        this.done = true;
+        if (access) window.localStorage.setItem("oldName", name.value);
+        var myName = name.value;
+
+        if (this.playPreroll) {
+          if (typeof aiptag.adplayer !== "undefined") {
+            this.infoBox.getChildByName("playButton").innerHTML = "Connecting..";
+            this.infoBox.getChildByName("playButton").style.backgroundColor = "grey";
+            this.music.stop();
+
+            aiptag.cmd.player.push(() => {
+              aiptag.adplayer = new aipPlayer({
+                AD_WIDTH: 960,
+                AD_HEIGHT: 540,
+                AD_FULLSCREEN: true,
+                AD_CENTERPLAYER: false,
+                LOADING_TEXT: "loading advertisement",
+                PREROLL_ELEM: function() { return document.getElementById("preroll"); },
+                AIP_COMPLETE: (evt) => {
+                  /*******************
+                   ***** WARNING *****
+                   *******************
+                   Please do not remove the PREROLL_ELEM
+                   from the page, it will be hidden automaticly.
+                   If you do want to remove it use the AIP_REMOVE callback.
+                  */
+                  this.infoBox.destroy();
+                  document.getElementById("game").focus();
+                  this.callback(myName, this.music, this.secret, null);
+
+                  console.log("Preroll Ad Completed: " + evt);
+                }
+              });
+            });
+            aiptag.cmd.player.push(() => {
+              aiptag.adplayer.startPreRoll();
+            });
+          } else {
+            this.infoBox.destroy();
+
+            this.callback(myName, this.music, this.secret, null);
+          }
+        } else {
+
+          this.infoBox.destroy();
+          this.callback(myName, this.music, this.secret, null);
         }
       }
     };
 
-    var go2 = () => {
+    var go2 = (gofunction) => {
       if (this.promo && this.promo.visible) {
         this.promo.destroy();
       } else if (this.login && this.login.visible) {
         this.login.getChildByName("login").click();
       } else if (this.signup && this.signup.visible) {
         this.signup.getChildByName("signup").click();
-      } else if (this.nameBox.getChildByName("btn").disabled) {
+      } else if (this.infoBox.getChildByName("playButton").disabled) {
       } else if (this.settings && this.settings.visible) {
         this.settings.destroy();
-      } else go();
+      } else gofunction();
     };
-    this.nameBox.getChildByName("btn").onclick = () => {
-      go2();
+    this.infoBox.getChildByName("playButton").onclick = () => {
+      go2(go);
     };
     this.returnKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER, false);
     this.returnKey.on("down", event => {
-      go2();
+      go2(go);
     });
+
+    this.infoBox.getChildByName("joinPrivateRoom").onclick = () => {
+      go2(goPrivateRoom);
+    }
 
     var loggedIn = false;
     this.secret = undefined;
 
     const login = (secret) => {
-      this.nameBox.getChildByName("btn").innerHTML = "Connecting..";
-      this.nameBox.getChildByName("btn").disabled = true;
+      this.infoBox.getChildByName("playButton").innerHTML = "Connecting..";
+      this.infoBox.getChildByName("playButton").disabled = true;
       console.log("Attempting to login");
       grecaptcha.ready(() => {
         grecaptcha.execute(CAPTCHASITE, { action: "relogin" }).then((thetoken) => {
@@ -361,13 +427,13 @@ class TitleScene extends Phaser.Scene {
             console.log("Logged in");
             if (this.loginButton) this.loginButton.destroy();
             if (this.signupButton) this.signupButton.destroy();
-            if (this.nameBox && this.nameBox.visible) {
-              this.nameBox.getChildByName("name").value = res.data.username;
-              this.nameBox.getChildByName("name").disabled = true;
-              this.nameBox.getChildByName("name").classList.add("loggedin");
+            if (this.infoBox && this.infoBox.visible) {
+              this.infoBox.getChildByName("name").value = res.data.username;
+              this.infoBox.getChildByName("name").disabled = true;
+              this.infoBox.getChildByName("name").classList.add("loggedin");
 
-              this.nameBox.getChildByName("btn").innerHTML = "Play!";
-              this.nameBox.getChildByName("btn").disabled = false;
+              this.infoBox.getChildByName("playButton").innerHTML = "Play!";
+              this.infoBox.getChildByName("playButton").disabled = false;
 
               this.accountData = res.data;
               showLoggedIn();
@@ -397,9 +463,9 @@ class TitleScene extends Phaser.Scene {
       this.dropdown = this.add.dom(0, 0).createFromCache("dropdown").setOrigin(0);
       document.getElementById("username").innerHTML = this.accountData.username;
       document.getElementById("profile").setAttribute("onclick", `location.href='/${this.accountData.username}'`);
-      this.nameBox.getChildByName("name").classList.add("loggedin");
+      this.infoBox.getChildByName("name").classList.add("loggedin");
 
-      this.nameBox.getChildByName("name").disabled = true;
+      this.infoBox.getChildByName("name").disabled = true;
       document.getElementById("username").style.fontSize = "30px";
       this.dropdown.x = (this.canvas.width / 1.2) - (document.getElementById("username").getBoundingClientRect().width);
       this.dropdown.y = -20;
@@ -423,7 +489,7 @@ class TitleScene extends Phaser.Scene {
                 document.getElementById("username").innerHTML = person;
                 document.getElementById("profile").setAttribute("onclick", `location.href='/${person}'`);
                 //set namebox
-                this.nameBox.getChildByName("name").value = person;
+                this.infoBox.getChildByName("name").value = person;
                 alert("Username changed!");
               } else {
                 res.json().then((data) => {
@@ -443,9 +509,9 @@ class TitleScene extends Phaser.Scene {
         this.secret = undefined;
         this.accountData = undefined;
         loggedIn = false;
-        this.nameBox.getChildByName("name").disabled = false;
-        this.nameBox.getChildByName("name").classList.remove("loggedin");
-        this.nameBox.getChildByName("name").value = "";
+        this.infoBox.getChildByName("name").disabled = false;
+        this.infoBox.getChildByName("name").classList.remove("loggedin");
+        this.infoBox.getChildByName("name").value = "";
         try {
           window.localStorage.removeItem("oldName");
         } catch (e) {
@@ -666,7 +732,7 @@ this.shopLoading = false;
       } catch (e) {
 
       }
-      this.nameBox.x = this.canvas.width / 2;
+      this.infoBox.x = this.canvas.width / 2;
       this.text.x = this.canvas.width / 2;
 
       this.settingsBtn.btn.setScale(clamp(this.canvas.width / 10000, 0.08, 0.4));
@@ -776,14 +842,13 @@ this.shopLoading = false;
 
   }
 
-  update(d) {
-    this.nameBox.y = (this.mobile ? this.text.y + (this.text.height / 2) : this.text.y + (this.text.height));
+  update(t, dt) {
+    this.infoBox.y = (this.mobile ? this.text.y + (this.text.height / 2) : this.text.y + (this.text.height));
 
     var footery = this.canvas.height - (this.footer.height);
     if (this.canvas.height < 384) footery = this.canvas.height - (this.footer.height / 2);
 
     if (this.footerdone && this.footer.y != footery) this.footer.y = footery;
-
   }
 }
 
