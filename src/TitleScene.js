@@ -12,6 +12,10 @@ class TitleScene extends Phaser.Scene {
   preload() {
     try {
       document.getElementsByClassName("grecaptcha-badge")[0].style.opacity = 100;
+      if(this.mobile) {
+        document.getElementsByClassName("grecaptcha-badge")[0].style.transform = "scale(0)";
+        document.getElementsByClassName("grecaptcha-badge")[0].style.transformOrigin = "0 0";
+      }
     } catch (e) {
       console.log("captcha hasnt loaded yet");
     }
@@ -26,8 +30,7 @@ class TitleScene extends Phaser.Scene {
 
     const pingServers = (sethtml = true) => {
       var servers = {
-        "us1": "https://us2.swordbattle.io",
-        "us2": "https://sword-io-game.herokuapp.com",
+        "us1": "https://sword-io-game.herokuapp.com",
         "eu1": "https://swordbattle.herokuapp.com"
       };
 
@@ -63,12 +66,10 @@ class TitleScene extends Phaser.Scene {
         });
       };
       var pings = [];
-      var e = ["us1","us2","eu1"];
-      var f = ["USA","USA 2","Europe"];
+      var e = ["us1","eu1"];
+      var f = ["USA","Europe"];
       ping("us1").then(res1 => {
         pings.push(res1);
-        ping("us2").then(res2 => {
-          pings.push(res2);
         ping("eu1").then(res3 => {
           pings.push(res3);
           //now calculate the optimal server.
@@ -76,19 +77,19 @@ class TitleScene extends Phaser.Scene {
             alert("Could not find an available server. Please try again later.");
           } else {
 
-            var scores = pings.map(p => (p.ping*2) - (p.info.actualPlayercount ? p.info.actualPlayercount * 30 : 0) + (p.info.lag == "No lag" ? 0 : p.info.lag == "Moderate lag" ? 250 : 1000) + (p.info.playerCount > 15 ? Math.abs(15-p.info.playerCount)*100 : 0)).map((p) => !p ? Infinity : p);
+            var scores = pings.map(p => (p.ping*2) - (p.info.actualPlayercount ? p.info.actualPlayercount * 50 : 0) + (p.info.lag == "No lag" ? 0 : p.info.lag == "Moderate lag" ? 250 : 1000) + (p.info.playerCount > 15 ? Math.abs(15-p.info.playerCount)*100 : 0)).map((p) => !p ? Infinity : p);
             var best = e[scores.indexOf(Math.min(...scores))];
             console.log("optimal server found: " + best + " with score: " + Math.min(...scores));
             this.optimalServer = best;
             console.log(sethtml);
             if (sethtml) {
               e.forEach((s, i) => {
+                console.log(s);
                 document.getElementById(s).innerHTML = f[i] + (pings[i].error ? " (OFFLINE)" : ` (${pings[i].ping}ms, ${pings[i].info.playerCount} players)`);
               });
               document.getElementById("auto").innerHTML = "Auto (" + f[scores.indexOf(Math.min(...scores))] + ")";
             }
           }
-        });
     });
   });
 
@@ -402,6 +403,36 @@ class TitleScene extends Phaser.Scene {
       document.getElementById("username").style.fontSize = "30px";
       this.dropdown.x = (this.canvas.width / 1.2) - (document.getElementById("username").getBoundingClientRect().width);
       this.dropdown.y = -20;
+      document.getElementById("changename").onclick = () => {
+        let person = prompt("Please enter your new username:", "");
+        if (person == null) {
+        } else {
+            if(person == "") alert("Username cannot be empty");
+            fetch("/api/changename", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                secret: this.secret,
+                username: person
+              })
+            }).then((res) => {
+              if (res.status == 200) {
+                this.accountData.username = person;
+                document.getElementById("username").innerHTML = person;
+                document.getElementById("profile").setAttribute("onclick", `location.href='/${person}'`);
+                //set namebox
+                this.nameBox.getChildByName("name").value = person;
+                alert("Username changed!");
+              } else {
+                res.json().then((data) => {
+                  alert(data.error);
+                });
+              }
+            });
+        }
+      };
       document.getElementById("logout").onclick = () => {
         this.dropdown.destroy();
         try {
@@ -427,13 +458,18 @@ class TitleScene extends Phaser.Scene {
 
 
     };
-
+this.shopLoading = false;
     this.shopBtn = new ImgButton(this, 10, 10, "shopBtn", () => {
+      if(this.shopLoading) return;
       document.getElementById("shopFrame").contentWindow.location.replace("/shop?secret=" + this.secret);
       var frame = document.getElementById("shopFrame");
+      this.shopLoading = true;
+      this.shopBtn.btn.visible = false;
 
 
       frame.onload = () => {
+        this.shopLoading = false;
+
         var frameDoc = document.getElementById("shopFrame").contentWindow.document;
 
 
@@ -442,6 +478,11 @@ class TitleScene extends Phaser.Scene {
 
         frameDoc.getElementById("closeShop").onclick = () => {
           document.getElementById("shopFrame").style.display = "none";
+          this.shopBtn.btn.visible = true;
+        };
+        frameDoc.getElementById("closeShop1").onclick = () => {
+          document.getElementById("shopFrame").style.display = "none";
+          this.shopBtn.btn.visible = true;
         };
       };
 

@@ -14,7 +14,20 @@
             "price": 100,
             "description": "Ahhh.. So bright!"
         },
-
+        {
+            "name": "vortex",
+            "displayName": "Vortex",
+            "url": "/assets/images/vortexPlayer.png",
+            "price": 200,
+            "description": "The power is too strong.."
+        },
+        {
+            "name": "bubble",
+            "displayName": "Bubble",
+            "url": "/assets/images/bubblePlayer.png",
+            "price": 300,
+            "description": "Magical, colorful, mysterious"
+        },
         {
             "name": "fox",
             "displayName": "Fox",
@@ -30,11 +43,46 @@
             "description": "Spring is here!"
         },
         {
+            "name": "hacker",
+            "displayName": "Hacker",
+            "url": "/assets/images/hackerPlayer.png",
+            "price": 5000,
+            "description": "ℙ𝕣𝕠 𝕙𝕒𝕔𝕜𝕖𝕣"
+        },
+        {
+            "name": "bread",
+            "displayName": "Bread",
+            "url": "/assets/images/breadPlayer.png",
+            "price": 7000,
+            "description": "Fresh, and tasty!"
+        },
+        {
             "name": "chef",
             "displayName": "Chef",
             "url": "/assets/images/chefPlayer.png",
             "price": 10000,
             "description": "Chop 'em up"
+        },
+        {
+            "name": "astronaut",
+            "displayName": "Astronaut",
+            "url": "/assets/images/astronautPlayer.png",
+            "price": 15000,
+            "description": "No gravity..."
+        },
+        {
+            "name": "ninja",
+            "displayName": "Ninja",
+            "url": "/assets/images/ninjaPlayer.png",
+            "price": 20000,
+            "description": "A skilled warrior"
+        },
+        {
+            "name": "sea",
+            "displayName": "Sea",
+            "url": "/assets/images/seaPlayer.png",
+            "price": 25000,
+            "description": "Peaceful, and relaxing."
         },
         {
             "name": "medic",
@@ -51,6 +99,20 @@
             "description": "I like it cold."
         },
         {
+            "name": "emerald",
+            "displayName": "Emerald",
+            "url": "/assets/images/emeraldPlayer.png",
+            "price": 150000,
+            "description": "Oooh shiny...."
+        },
+        {
+            "name": "cyborg",
+            "displayName": "Cyborg",
+            "url": "/assets/images/cyborgPlayer.png",
+            "price": 200000,
+            "description": "AI-Assisted Stabbing"
+        },
+        {
             "name": "angel",
             "displayName": "ANGEL",
             "url": "/assets/images/angelPlayer.png",
@@ -65,6 +127,20 @@
             "description": "Now this will scare everyone!"
         },
         {
+            "name": "cookie",
+            "displayName": "Cookie",
+            "url": "/assets/images/cookiePlayer.png",
+            "price": 1500000,
+            "description": "Scrumptious!"
+        },
+        {
+            "name": "mitblade",
+            "displayName": "MitBald",
+            "url": "/assets/images/mitbladePlayer.png",
+            "price": 2000000,
+            "description": "\"Buy channel membership only $3!!!!\""
+        },
+        {
             "name": "scythe",
             "displayName": "Scythe",
             "url": "/assets/images/scythePlayer.png",
@@ -76,7 +152,14 @@
             "displayName": "Coder Gautam YT",
             "url": "/assets/images/codergautamytPlayer.png",
             "price": 10000000,
-            "description": "The most dominant player.."
+            "description": "The creator of swordbattle.."
+        },
+        {
+            "name": "assasin",
+            "displayName": "Assassin",
+            "url": "/assets/images/assasinPlayer.png",
+            "price": 20000000,
+            "description": "You don't stand a chance-"
         }
 
     ]

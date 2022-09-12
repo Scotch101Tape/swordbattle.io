@@ -3,7 +3,12 @@
 const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
 const {CAPTCHASITE} = require("./config.json");
-console.log(CAPTCHASITE);
+function uuidv4() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == "x" ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 const config = {
   entry: "./src/index.js",
   plugins: [
@@ -13,7 +18,8 @@ const config = {
         { from: "src/index.html", to: "",  transform(content) {
           return content
             .toString()
-            .replace("INSERT_RECAPTCHA_SITE_KEY", CAPTCHASITE);
+            .replace("INSERT_RECAPTCHA_SITE_KEY", CAPTCHASITE)
+            .replace("RANDOM_UUID", uuidv4());
         }},
         { from: "src/title.html", to: "" },
         { from: "src/about.html", to: "" },
@@ -29,13 +35,11 @@ const config = {
     }),
   ],
   resolve: {
-    // Add `.ts` and `.tsx` as a resolvable extension.
-    extensions: [".ts", ".tsx", ".js"]
+    extensions: [".js"]
   },
   module: {
     rules: [
-      // all files with a `.ts` or `.tsx` extension will be handled by `ts-loader`
-      { test: /\.tsx?$/, loader: "ts-loader" }
+      { test: /\.(js)$/, exclude: /node_modules/, loader: "babel-loader" },
     ]
   },
   output: {

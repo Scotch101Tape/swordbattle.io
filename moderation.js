@@ -8,6 +8,7 @@ module.exports = {
         "78.58.116.96",
         "34.135.84.39",
         "73.222.174.240",
+        "73.231.9.39"
       ],
       io: undefined,
       socketIds: undefined,

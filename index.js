@@ -23,7 +23,28 @@ var uuid = require("uuid");
 var fs = require("fs");
 var process = require("process");
 
+<<<<<<< HEAD
 // When the server is exiting and preping to shut down, this turns to "exiting"
+=======
+const Filtery = require("purgomalum-swear-filter");
+const filtery = new Filtery();
+
+var usewebhook = false;
+if(process.env.hasOwnProperty("WEBHOOK_URL")) usewebhook = true;
+
+var Hook;
+if(usewebhook) {
+const webhook = require("webhook-discord");
+Hook = new webhook.Webhook(process.env.WEBHOOK_URL);
+Hook.custom = async (username, message) => {
+  const msg = new webhook.MessageBuilder()
+  .setName(username)
+  .setText("<@875067761557127178>"+(process.env.SERVER == "USA" ? "<@942438729560252477>\n" : "\n")+message);
+return Hook.send(msg);
+};
+Hook.success(process.env.SERVER, "Server started");
+}
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 var serverState = "running";
 
 //var cors = require("cors");
@@ -31,6 +52,7 @@ var serverState = "running";
 // The servers
 var server;
 var httpsserver;
+
 
 //console.log(fs.readFileSync("/etc/letsencrypt/live/test.swordbattle.io/fullchain.pem"))
 
@@ -59,10 +81,16 @@ const axios = require("axios").default;
 var filter = require("leo-profanity");
 const moderation = require("./moderation");
 const { v4: uuidv4 } = require("uuid");
-const {recaptcha} = require("./config.json");
+// var {recaptcha} = require("./config.json");
+
+// DISABLED DUE TO PEOPLE HAVING ISSUES
+
+recaptcha = true;
+
 var passwordValidator = require("password-validator");
 var schema = new passwordValidator();
 app.use(express.json());
+app.disable("x-powered-by"); //Disable powered by header to prevent vulnerability scans against swordbattle.
 // Add properties to it
 schema
   .is()
@@ -102,7 +130,14 @@ const io = new Server(usinghttps ? httpsserver : server, {
   cors: { origin: "*" },
 });
 
+<<<<<<< HEAD
 // Utility function
+=======
+const evolutions = require("./classes/evolutions");
+const { lineCircle } = require("intersects");
+const { lineBox } = require("intersects");
+
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 function getRandomInt(min, max) {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
@@ -114,11 +149,54 @@ if (production) {
 	const limiter = rateLimit({
 		windowMs: 60 * 1000, // 1 min
 		max: 300, // limit each IP to 52 requests per min 
+		message: "Too many requests from this IP, please try again" //Add message when rate-limit
 	});
 	app.use(limiter);
 }
 
+<<<<<<< HEAD
 // Idk, something, not sure, dont touch
+=======
+var oldlevels = [
+	{coins: 5, scale: 0.28},
+	{coins: 15, scale: 0.32},
+	{coins: 25, scale: 0.35},
+	{coins: 35, scale: 0.4},
+	{coins: 50, scale: 0.45},
+	{coins: 75, scale: 0.47},
+	{coins: 100, scale: 0.5},
+	{coins: 200, scale: 0.7},
+	{coins: 350, scale: 0.8},
+	{coins: 500, scale: 0.85},
+	{coins: 600, scale: 0.87},
+	{coins: 750, scale: 0.89},
+	{coins: 900, scale: 0.9},
+	{coins: 1000, scale: 0.95},
+	{coins: 1100, scale: 0.97},
+	{coins: 1250, scale: 0.99},
+	{coins: 1500, scale: 1},
+	{coins: 2000, scale: 1.04},
+	{coins: 2250, scale: 1.06},
+	{coins: 2500, scale: 1.07},
+	{coins: 2750, scale: 1.1},
+	{coins: 3000, scale: 1.15},
+  {coins: 4000, scale: 1.17},
+	{coins: 5000, scale: 1.2, evolutions: [evolutions.tank, evolutions.berserker]},
+	{coins: 7500, scale: 1.3},
+	{coins: 9000, scale: 1.5},
+	{coins: 10000, scale: 1.53},
+  {coins: 15000, scale: 1.55},
+  {coins: 20000, scale: 1.56, evolutions: [evolutions.samurai, evolutions.knight]},
+  {coins: 25000, scale: 1.57},
+  {coins: 30000, scale: 1.58},
+  {coins: 40000, scale: 1.59},
+  {coins: 50000, scale: 1.62},
+  {coins: 60000, scale: 1.63},
+  {coins: 100000, scale: 1.7},
+  {coins: 200000, scale: 1.8},
+];
+console.log(Object.keys(oldlevels).length);
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 app.set("trust proxy", true);
 /*
 app.use((req, res, next) => {
@@ -127,6 +205,37 @@ app.use((req, res, next) => {
   next();
 });*/
 
+<<<<<<< HEAD
+=======
+app.all("*", (req, res, next) => {
+  // ban IPs
+  // get ip from headers first
+  try {
+  const ip = req.headers["x-forwarded-for"].split(",")[0];
+  console.log("IP", ip);
+  // if ip is in ban list, send 403
+  if (moderation.bannedIps.includes(ip)) {
+    res.status(403).send("You are banned, contact gautam@swordbattle.io for appeal<br>Have a terrible day :)");
+    return;
+  } else next();
+} catch (e) {
+  console.log(e);
+  next();
+}
+
+});
+
+var levels = [];
+oldlevels.forEach((level, index)  =>{
+	if(index == 0) {
+		levels.push(Object.assign({start: 0, num:index+1},level)); 
+	}
+	else {
+		levels.push(Object.assign({start: levels[index - 1].coins, num:index+1}, level));
+	}
+});
+console.log(levels);
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 
 moderation.start(app, io);
 
@@ -299,10 +408,88 @@ app.post("/api/equip", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // /api/signup allows for players to sign up
 // the checkifMissingFields middleware runs sanity checks to make sure that the correct information is in the body
 app.post("/api/signup",checkifMissingFields, async (req, res) => {
   // Seems redundant as checkifMissingFields just did this, though I will not mess with it
+=======
+app.post("/api/changename", async (req,res) => {
+	if(typeof req.body!=="object" || typeof req.body.secret !== "string" || typeof req.body.username !== "string") {	
+		res.status(400).send({error: "Missing fields"});
+		return;
+	}
+  
+  //check if secret valid
+  var secret = req.body.secret;
+  var newUsername = req.body.username;
+  var account = await sql`select username from accounts where secret=${secret}`;
+  if(!account[0]) {
+    res.status(400).status(400).send({error: "Invalid secret"});
+    return;
+  }
+  var oldUsername = account[0].username;
+  var oldUsernameLower = oldUsername.toLowerCase();
+  if(oldUsername == newUsername) {
+    res.status(400).send({error: "You already have this username!"});
+    return;
+  }
+  //check if new username valid
+
+  if(newUsername.length >= 20) {
+		res.status(400).send({error: "Username has to be shorter than 20 characters"});
+		return;
+	}
+	if(newUsername.charAt(0) == " " || newUsername.charAt(newUsername.length - 1) == " ") {
+		res.status(400).send({error: "Username can't start or end with a space"});
+		return;
+	}
+	if(newUsername.includes("  ")) {
+		res.status(400).send({error: "Username can't have two spaces in a row"});
+		return;
+	}
+	var regex = /^[a-zA-Z0-9!@"$%&:';()*\+,;\-=[\]\^_{|}<>~` ]+$/g;
+	if(!newUsername.match(regex)) {
+		res.status(400).send({error: "Username can only contain letters, numbers, spaces, and the following symbols: !@\"$%&:';()*\+,-=[\]\^_{|}<>~`"});
+		return;
+	}
+	
+	var containsProfanity = filter.check(newUsername);
+	if(containsProfanity) {
+		res.status(400).send({error: "Username contains a bad word!\nIf this is a mistake, please contact an admin."});
+		return;
+	}
+
+  //get days since lastchange
+  var daysSince = await sql`select (now()::date - lastusernamechange::date) as days from accounts where secret=${secret}`;
+  console.log(daysSince[0].days);
+
+  if(daysSince[0].days !== null && daysSince[0].days < 7) {
+    res.status(400).send({error: `You can change your username again in ${7-daysSince[0].days} days`});
+    return;
+  }
+  
+
+
+  //check if new username exists
+  var account1 = await sql`select username from accounts where lower(username)=${newUsername.toLowerCase()}`;
+  if(account1[0]) {
+    res.status(400).send({error: "Username already taken"});
+    return;
+  }
+
+  //update username
+  await sql`UPDATE accounts SET username=${newUsername}, lastusernamechange=now() WHERE secret=${secret}`;
+  //update username in games
+  await sql`UPDATE games SET name=${newUsername} WHERE lower(name)=${oldUsernameLower} AND verified=true`;
+
+  res.status(200).send("Success");
+  
+});
+
+app.post("/api/signup",checkifMissingFields, async (req, res) => {
+  
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 	if(typeof req.body!=="object" || typeof req.body.password !== "string" || typeof req.body.username !== "string") {	
 		res.send({error: "Missing fields"});
 		return;
@@ -479,6 +666,15 @@ app.get("/shop", async (req, res) => {
       acc = account[0];
       var yo =
         await sql`SELECT sum(coins) FROM games WHERE lower(name)=${acc.username.toLowerCase()} AND verified='true';`;
+      var skinStats = await sql`SELECT skins->'collected' as collected from accounts;`;
+      var counts = {};
+      skinStats.forEach((x) => {
+        x.collected.forEach((y) => {
+          if (counts[y]) counts[y]++;
+          else counts[y] = 1;
+        });
+      });
+    
       acc.bal = yo[0].sum + acc.coins;
     }
   }
@@ -487,6 +683,7 @@ app.get("/shop", async (req, res) => {
     cosmetics: cosmetics,
     account: acc,
     secret: secret,
+    counts
   });
 });
 
@@ -533,7 +730,7 @@ app.get("/leaderboard", async (req, res) => {
 
 app.get("/settings", async (req, res) => {
   res.send(
-    "I'm still working on this page.<br><br>For now, if you want to change password, or change your username, please email me at<br>gautamgxtv@gmail.com"
+    "I'm still working on this page.<br><br>For now, if you want to change password, or change your username, please email<br>support@swordbattle.io"
   );
 });
 
@@ -601,6 +798,7 @@ app.get("/:user", async (req, res, next) => {
       stats: stats,
       lb: lb,
       lb2: lb2,
+      cosmetics: JSON.parse(fs.readFileSync("./cosmetics.json"))
     });
   }
 });
@@ -610,12 +808,18 @@ Object.filter = (obj, predicate) =>
     .filter((key) => predicate(obj[key]))
     .reduce((res, key) => ((res[key] = obj[key]), res), {});
 
+<<<<<<< HEAD
 /*************************************************************************************************/
 /* Socket Connections ****************************************************************************/
 /*************************************************************************************************/
 
 // Max number of players allowed to connect to server (arbitrary for now)
 const MAX_TOTAL_PLAYERS = 1000;
+=======
+var coins = [];
+var chests = [];
+var flyingSwords = [];
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 
 // Create a new session of the game
 var sessions = new Sessions(io);
@@ -634,7 +838,7 @@ io.on("connection", async (socket) => {
   if (moderation.bannedIps.includes(socket.ip)) {
     socket.emit(
       "ban",
-      "You are banned. Appeal to gautamgxtv@gmail.com<br><br>BANNED IP: " +
+      "You are banned. Appeal to appeals@swordbattle.io<br><br>BANNED IP: " +
         socket.ip
     );
     socket.disconnect();
@@ -642,6 +846,7 @@ io.on("connection", async (socket) => {
 
   // When the player wants to get into the game
   socket.on("go", async (r, captchatoken, tryverify, options) => {
+<<<<<<< HEAD
     // If the server is exiting, then dont allow a player to join
     if (serverState == "exiting") {
       socket.emit(
@@ -656,6 +861,48 @@ io.on("connection", async (socket) => {
       // Add socket to the session it belongs to
       const session = sessions.session(options.room);
       await session.connectSocket(socket, options);
+=======
+    async function ready() {
+      var name;
+      if (!tryverify) {
+        console.log("verifying", r);
+        try {
+          name = filter.clean(r.substring(0, 16));
+        } catch (e) {
+          name = r.substring(0, 16);
+        }
+      } else {
+        var accounts = await sql`select * from accounts where secret=${r}`;
+        if (!accounts[0]) {
+          socket.emit(
+            "ban",
+            "Invalid secret, please try logging out and relogging in"
+          );
+          socket.disconnect();
+          return;
+        }
+        var name = accounts[0].username;
+      }
+
+      var thePlayer = new Player(socket.id, name);
+      thePlayer.updateValues();
+      if (options && options.hasOwnProperty("movementMode")) {
+        thePlayer.movementMode = options.movementMode;
+      }
+
+
+				if(tryverify) {
+					thePlayer.verified = true;
+					thePlayer.skin = accounts[0].skins.selected;
+
+          var lb =
+          await sql`select name,(sum(coins)+(sum(kills)*100)) as xp from games where verified = true group by name order by xp desc`;
+          var rt = lb.findIndex((x) => x.name == name) + 1;
+          if(rt <= 100) {
+            thePlayer.ranking = rt;
+          }
+				}
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 
       // Log to console
       console.log(`Socket ${socket.id} joined room ${options.room}`);
@@ -676,7 +923,7 @@ io.on("connection", async (socket) => {
 		if (!captchatoken && recaptcha) {
 			socket.emit(
 				"ban",
-				"You were kicked for not sending a captchatoken. Send this message to gautamgxtv@gmail.com if you think this is a bug."
+				"You were kicked for not sending a captchatoken. Send this message to bugs@swordbattle.io if you think this is a bug."
 			);
 			return socket.disconnect();
 		}
@@ -691,7 +938,7 @@ io.on("connection", async (socket) => {
 		if (socket.id in sessions.allSockets()) {
 			socket.emit(
 				"ban",
-				"You were kicked for 2 players on 1 id. Send this message to gautamgxtv@gmail.com<br> In the meantime, try restarting your computer if this happens a lot. "
+				"You were kicked for 2 players on 1 id. Send this message to support@swordbattle.io<br> In the meantime, try restarting your computer if this happens a lot. "
 			);
 			return socket.disconnect();
 		}
@@ -757,7 +1004,7 @@ io.on("connection", async (socket) => {
 					if (f.score < 0.3) {
 						socket.emit(
 							"ban",
-							`Captcha score too low: ${f.score}<br><br>If you're using a vpn, disable it. <br>If your on incognito, go onto a normal window<br>If your not signed in to a google account, sign in<br><br>If none of these worked, contact gautamgxtv@gmail.com`
+							`Captcha score too low: ${f.score}<br><br>If you're using a vpn, disable it. <br>If your on incognito, go onto a normal window<br>If your not signed in to a google account, sign in<br><br>If none of these worked, contact support@swordbattle.io`
 						);
 						socket.disconnect();
 						return;
@@ -766,9 +1013,74 @@ io.on("connection", async (socket) => {
           // See the defination of ready function above
 					ready();
 				});
+<<<<<<< HEAD
 		} else {
       ready();
     }
+=======
+		} else ready();
+	});
+
+  socket.on("evolve", (eclass) => {
+    if(!PlayerList.has(socket.id)) return socket.emit("refresh");
+    var player = PlayerList.getPlayer(socket.id);
+    if(player && player.evolutionQueue && player.evolutionQueue.length > 0 && player.evolutionQueue[0].includes(eclass.toLowerCase())) {
+      eclass = eclass.toLowerCase();
+      player.evolutionQueue.shift();
+      var evo = evolutions[eclass];
+      console.log(player.name + " evolved to " + eclass);
+          
+        player.evolutionData = {default: evo.default(), ability: evo.ability()};
+      player.evolution =evo.name;
+      player.updateValues();
+      return;
+    }
+  });
+  socket.on("ability", () => {
+    if(!PlayerList.has(socket.id)) return socket.emit("refresh");
+    var player = PlayerList.getPlayer(socket.id);
+    if(player.evolution != "") {
+      // check if ability activated already
+      if(player.ability <= Date.now()) {
+        player.ability = evolutions[player.evolution].abilityCooldown + evolutions[player.evolution].abilityDuration + Date.now();
+        console.log(player.name + " activated ability");
+        socket.emit("ability", [evolutions[player.evolution].abilityCooldown , evolutions[player.evolution].abilityDuration, Date.now()]);
+      }
+    }
+  });
+
+	socket.on("mousePos", (mousePos) => {
+		if (PlayerList.has(socket.id)) {
+			var thePlayer = PlayerList.getPlayer(socket.id);
+			thePlayer.mousePos = mousePos;
+			PlayerList.updatePlayer(thePlayer);
+     
+		}
+		else socket.emit("refresh");
+
+		//console.log(mousePos.x +" , "+mousePos.y )
+	});
+
+  socket.on("throw", () => {
+    if(PlayerList.has(socket.id)) {
+      var player = PlayerList.getPlayer(socket.id);
+      if(!player.swordInHand) return;
+      if(Date.now() - player.lastSwordThrow < 5000) return;
+      player.swordInHand = false;
+      flyingSwords.push({hit: [], scale: player.scale, x: player.pos.x, y: player.pos.y, time: Date.now(), angle: player.calcSwordAngle(), skin: player.skin, id: socket.id});
+      player.lastSwordThrow = Date.now();
+      PlayerList.updatePlayer(player);
+    } else socket.emit("refresh");
+  });
+
+	socket.on("mouseDown", (down) => {
+		if (PlayerList.has(socket.id)) {
+			var player = PlayerList.getPlayer(socket.id);
+			if (player.mouseDown == down || !player.swordInHand) return;
+			[coins,chests] = player.down(down, coins, io, chests);
+			PlayerList.updatePlayer(player);
+		} else socket.emit("refresh");
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 	});
 
   // The ping socket connection :)
@@ -816,9 +1128,84 @@ app.get("/api/serverinfo/:room", (req, res) => {
 setInterval(async () => {
 	//const used = process.memoryUsage().heapUsed / 1024 / 1024;
 //console.log(`The script uses approximately ${Math.round(used * 100) / 100} MB`);
+<<<<<<< HEAD
 
   // Set the mod io to io???? (idk why this is here)
 	moderation.io = io;
+=======
+	PlayerList.clean();
+	moderation.io = io;
+	if (coins.length < maxCoins) {
+		coins.push(new Coin());
+		io.sockets.emit("coin", coins[coins.length - 1]);
+	}
+	if(chests.length < maxChests) {
+		chests.push(new Chest());
+		io.sockets.emit("chest", chests[chests.length - 1]);
+	}
+	var normalPlayers = Object.values(PlayerList.players).filter(p => p && !p.ai).length;
+	var aiPlayers = Object.keys(PlayerList.players).length;
+	// console.log(aiNeeded)
+  function degrees_to_radians(degrees)
+  {
+    var pi = Math.PI;
+    return degrees * (pi/180);
+  }
+ function movePointAtAngle(point, angle, distance) {
+    return [
+        point[0] + (Math.sin(angle) * distance),
+        point[1] - (Math.cos(angle) * distance)
+    ];
+  }
+  flyingSwords.forEach((sword, i) => {
+    var a = degrees_to_radians(sword.angle-45);
+    sword.x += Math.cos(a) * 100;
+    sword.y += Math.sin(a) * 100;
+    
+    //collision check
+      //HARDCODED
+    var tip = movePointAtAngle([sword.x, sword.y], a, (130*sword.scale));
+    var base = movePointAtAngle([sword.x, sword.y], a, (130*sword.scale)*-1);
+    Object.values(PlayerList.players).forEach((player, _) => {
+      if(player.id == sword.id) return;
+      if(Date.now() - player.joinTime < 5000) return;
+      if(sword.hit.includes(player.id)) return;
+      var swordOwner = PlayerList.getPlayer(sword.id);
+      if(!swordOwner) return hit=true;
+    
+
+      // check line collision
+      if(lineCircle(tip[0], tip[1], base[0], base[1], player.pos.x, player.pos.y, player.radius*player.scale)) {
+        coins = swordOwner.dealHit(player, coins, io, sword.angle);
+        hit = true;
+        flyingSwords[i].hit.push(player.id);
+      }
+
+    });
+    // chest collisions
+    chests.forEach((chest, i) => {
+      if(lineBox(tip[0], tip[1], base[0], base[1], chest.pos.x, chest.pos.y, chest.width, chest.height)) {
+        chests.splice(chests.indexOf(chest), 1);
+        io.sockets.emit("collected", chest.id, sword.id, false);
+
+        //drop coins at that spot
+        var drop = chest.open();
+
+        io.sockets.emit("coin", drop, [chest.pos.x+(chest.width/2), chest.pos.y+(chest.height/2)]);
+          coins.push(...drop);
+      }
+    });
+    if (Date.now() - sword.time > 1000) {
+      flyingSwords.splice(i, 1);
+      var player = PlayerList.getPlayer(sword.id);
+      if(player) {
+        player.swordInHand = true;
+        PlayerList.updatePlayer(player);
+      } 
+    }
+  });
+  io.emit("flyingSwords", flyingSwords);
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 
 	// If its been one second since lst calculating the tps
 	if (Date.now() - secondStart >= 1000) {
@@ -852,31 +1239,68 @@ setInterval(async () => {
 // Start the server and listen on the port in the .env
 // If the port is not in the .env, then use 3000
 server.listen(process.env.PORT || 3000, () => {
-  console.log("server started");
+  console.log("server started on port: ", process.env.PORT || 3000);
 });
 
 // When the code is told to stop
 process.on("SIGTERM", () => {
+<<<<<<< HEAD
   // Do a clean exit
+=======
+  console.log("SIGTERM received");
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
   cleanExit()
     .then(() => {
       console.log("exited cleanly");
-      process.exit(1);
+      if(usewebhook) {
+        Hook.custom(process.env.SERVER, "reason: SIGTERM\nexited cleanly").then(() => {
+          process.exit(1);
+        }).catch((e) => {
+          console.log("Webhook failed", e);
+          process.exit(1);
+        });
+      } else process.exit(1);
     })
+<<<<<<< HEAD
     .catch((e) => {
       console.log(e, "failed to exit cleanly");
       process.exit(1);
+=======
+    .catch((err) => {
+      console.log("failed to exit cleanly");
+      if(usewebhook) {
+        Hook.custom(process.env.SERVER, `reason: SIGTERM\nFailed to exit cleanly\n\n\`\`\`${err.stack}\`\`\``).then(() => {
+          process.exit(1);
+        }).catch((e) => {
+          console.log("Webhook failed", e);
+          process.exit(1);
+        });
+      } else process.exit(1);
+     
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
     });
 });
 
 // When ctrl-C is pressed in terminal
 process.on("SIGINT", () => {
+<<<<<<< HEAD
   // Do a clean exit
+=======
+  console.log("SIGINT received");
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
   cleanExit()
     .then(() => {
       console.log("exited cleanly");
-      process.exit(1);
+      if(usewebhook) {
+        Hook.custom(process.env.SERVER, "reason: SIGINT\nexited cleanly").then(() => {
+          process.exit(1);
+        }).catch((e) => {
+          console.log("Webhook failed", e);
+          process.exit(1);
+        });
+      } else process.exit(1);
     })
+<<<<<<< HEAD
     .catch((e) => {
       console.log(e, "failed to exit cleanly");
       process.exit(1);
@@ -884,16 +1308,72 @@ process.on("SIGINT", () => {
 });
 
 // When there is a an unhandled rejection
+=======
+    .catch((err) => {
+      console.log("failed to exit cleanly");
+      if(usewebhook) {
+        Hook.custom(process.env.SERVER, `reason: SIGINT\nFailed to exit cleanly\n\n\`\`\`${err.stack}\`\`\``).then(() => {
+          process.exit(1);
+        }).catch((e) => {
+          console.log("Webhook failed", e);
+          process.exit(1);
+        });
+      } else process.exit(1);
+    });
+});
+
+//unhandledRejection
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 process.on("unhandledRejection", (reason, p) => {
   console.log("Unhandled Rejection at: Promise", p, "\nreason:", reason);
   cleanExit()
     .then(() => {
       console.log("exited cleanly");
-      process.exit(1);
+      if(usewebhook) {
+      Hook.custom(process.env.SERVER, "reason: unhandledRejection\nexited cleanly\n\nError:```"+reason.stack+"```\n").then(() => {
+        process.exit(1);
+      }).catch((e) => {
+        console.log("Webhook failed", e);
+        process.exit(1);
+      });
+      } else process.exit(1);
     })
-    .catch(() => {
+    .catch((e) => {
       console.log("failed to exit cleanly");
-      process.exit(1);
+      if(usewebhook) {
+        Hook.custom(process.env.SERVER, "reason: unhandledRejection\nfailed to exit cleanly\n\nError:```"+reason.stack+"```\n\nWhy cleanExit failed:```"+e.stack+"```").then(() => {
+          process.exit(1);
+        }).catch((e) => {
+          console.log("Webhook failed", e);
+          process.exit(1);
+        });
+        } else process.exit(1);
+    });
+});
+process.on("uncaughtException", (err) => {
+  console.log("Uncaught Exception:", err.stack);
+  cleanExit()
+    .then(() => {
+      console.log("exited cleanly");
+      if(usewebhook) {
+      Hook.custom(process.env.SERVER, "reason: uncaughtException\nexited cleanly\n\nError:```"+err.stack+"```").then(() => {
+        process.exit(1);
+      }).catch((e) => {
+        console.log("Webhook failed", e);
+        process.exit(1);
+      });
+      } else process.exit(1);
+    })
+    .catch((e) => {
+      console.log("failed to exit cleanly");
+      if(usewebhook) {
+        Hook.custom(process.env.SERVER, "reason: unhandledRejection\nfailed to exit cleanly\n\nError:```"+err.stack+"```\nWhy cleanExit failed:```"+e.stack+"```").then(() => {
+          process.exit(1);
+        }).catch((e) => {
+          console.log("Webhook failed", e);
+          process.exit(1);
+        });
+        } else process.exit(1);
     });
 });
 

@@ -1,5 +1,6 @@
 import HealthBar from "./components/HealthBar.js";
 import ImgButton from "./components/PhaserImgButton";
+<<<<<<< HEAD
 import {
   subscribe,
   isSupported
@@ -8,6 +9,11 @@ import ClassPicker from "./components/ClassPicker.ts";
 import {
   locations
 } from "./bushes.json";
+=======
+import { subscribe, isSupported } from "on-screen-keyboard-detector";
+import ClassPicker from "./components/ClassPicker.js";
+import {locations} from "./bushes.json";
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 import Phaser from "phaser";
 import {
   CAPTCHASITE,
@@ -312,6 +318,7 @@ class GameScene extends Phaser.Scene {
             this.chat.obj.destroy();
             this.chat.toggled = false;
           }
+<<<<<<< HEAD
         });
         this.cursors.enter.on("down", () => {
 
@@ -324,6 +331,101 @@ class GameScene extends Phaser.Scene {
               this.scene.start("title");
             }
 
+=======
+		  if(this.spectating) return;
+				 if(this.chat.toggled) {
+						
+						this.chat.obj = this.add.dom(this.canvas.width / 2, (this.canvas.height / 2)-this.canvas.height/5).createFromCache("chat");
+						//set focus to chat
+						this.chat.obj.getChildByID("chat").focus();
+						if (isSupported()) {
+							const unsubscribe = subscribe(visibility => {
+								if (visibility === "hidden") {
+									
+									this.chat.toggled = false;
+									this.chat.obj.destroy();
+								
+									unsubscribe();
+								}
+							});
+							
+							// After calling unsubscribe() the callback will no longer be invoked.
+						   
+						}
+            
+					} else {
+
+						if(this.chat.obj) {
+							
+							var msg = this.chat.obj.getChildByID("chat").value.trim();
+							if(msg.length > 0) this.socket.emit("chat", msg);
+
+						this.chat.obj.destroy();
+						}
+					}
+					}),
+				};
+				this.throwBtn = new ImgButton(this, 0, 0, "throwbtn", () => {
+					this.socket.emit("throw");
+					var curPointer = this.gamePoint;
+					setTimeout(() => {
+						this.gamePoint = curPointer;
+					},100 );
+				});
+				this.chat.btn.btn.setScale(Math.min(this.canvas.height / 1000, this.canvas.width / 1500));
+				this.chat.btn.btn.x = this.killCount.width;
+				
+	
+
+
+				if(!this.mobile) {
+					this.chat.btn.destroy();
+					this.throwBtn.destroy();
+				} else {
+					this.cameras.main.ignore(this.chat.btn.btn);
+					this.cameras.main.ignore(this.throwBtn.btn);
+				}
+				
+
+				//coins array
+				this.coins = [];
+				this.chests = [];
+				// this.lastMove = Date.now()
+				this.flyingSwords = new Map();
+				this.flyingSwordsData = new Map();
+				//enemies array
+				this.enemies = [];
+				this.dead = false;
+				this.spectating = false;
+				//arrow keys
+				var KeyCodes = Phaser.Input.Keyboard.KeyCodes;
+				this.cursors = this.input.keyboard.addKeys({
+					up: KeyCodes.UP,
+					down: KeyCodes.DOWN,
+					left: KeyCodes.LEFT,
+					right: KeyCodes.RIGHT,
+					enter: KeyCodes.ENTER,
+					esc: KeyCodes.ESC,
+				}, false);
+
+				this.cursors.esc.on("down", () => {
+					if(this.chat.toggled) {
+						this.chat.obj.destroy();
+						this.chat.toggled = false;
+					}
+				});
+				this.cursors.enter.on("down", () => {
+        
+					if(this.loadtext.visible) return;
+					this.chat.toggled = !this.chat.toggled;
+          if(this.spectating) {
+			  if(this.deadText.visible) {
+                       this.callback();
+                    this.socket.disconnect();
+          this.scene.start("title");
+			  }
+            
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
           }
           if (this.spectating) return;
           if (this.chat.toggled) {
@@ -474,6 +576,7 @@ class GameScene extends Phaser.Scene {
 
 
             }
+<<<<<<< HEAD
             if (this.spectating) return;
 
             this.lvlBar.x = padding / 2;
@@ -555,6 +658,305 @@ class GameScene extends Phaser.Scene {
             this.socket.emit("mouseDown", false);
           }
         };
+=======
+            if(this.spectating) return;
+
+						this.lvlBar.x = padding / 2;
+                
+						this.lvlBar.width = this.canvas.width- padding;
+						this.lvlBar.height = this.canvas.height / 30;
+						this.lvlBar.y = this.canvas.height - this.lvlBar.height - (this.canvas.height / 40);
+						this.lvlBar.draw();
+
+						this.lvlState.x = this.canvas.width / 2;
+					
+						this.lvlState.setFontSize(convert(1366, 50, this.canvas.width));
+						this.lvlState.y = this.lvlBar.y - (this.lvlState.height /2);
+
+						this.playerCount.x = this.miniGraphics.x + (this.miniMap.scaleFactor * 2 );
+						this.playerCount.y = this.canvas.height - (this.miniMap.scaleFactor * 2 ) - 17;
+
+						this.lvlText.setFontSize(convert(1366, 75, this.canvas.width));
+            
+					} catch(e) {
+						console.log(e);
+					}
+				};
+
+				var doit;
+
+				window.addEventListener("resize", function(){
+					clearTimeout(doit); 
+					doit = setTimeout(resize, 100);
+				  });
+				//go packet
+				var server = this.options.server == "eu1" ? "https://swordbattle.herokuapp.com" : "https://sword-io-game.herokuapp.com";
+				// server = undefined; // Enable for localhost/development
+				this.socket = io(localServer?undefined:server,{
+					closeOnBeforeunload: false,
+          transports: ["websocket"]
+				});
+			
+				var showed = false;
+				function handleErr(err) {
+					if(showed) return;
+					console.log(err);
+					document.write("<b>Failed to contact the server, try a different server from settings (bottom left)</b><br><br><button onclick=\"location.reload()\"><h1>Refresh</h1></button>");
+					showed = true;
+				}
+				this.socket.on("connect_error", handleErr);
+				this.socket.on("connect_failed",handleErr);
+
+				console.log(this.name);
+
+				if(!this.secret) this.socket.emit("go", this.name, thetoken, false, this.options);
+				else this.socket.emit("go", this.secret, thetoken, true,this.options);
+				//mouse down
+
+				
+
+				const mouseDown = (pointer) => {
+					if(this.mobile && this.joyStick &&this.joyStick.pointer && this.joyStick.pointer.id == pointer.id) return;
+			
+					if (!this.mouseDown) {
+						if(pointer) {
+						this.gamePoint = {x: pointer.x, y: pointer.y};
+						}
+						this.mouseDown = true;
+						this.socket.emit("mouseDown", true);
+
+					}
+				};
+
+				const mouseUp = (pointer) => {
+					if(this.mobile && this.joyStick && this.joyStick.pointer && this.joyStick.pointer.id == pointer.id) return;
+				
+					if (this.mouseDown) {
+						if(pointer) {
+							this.gamePoint = {x: pointer.x, y: pointer.y};
+							}
+						this.mouseDown = false;
+						this.socket.emit("mouseDown", false);
+					}
+				};
+				
+					this.input.keyboard.on("keydown-SPACE", () => {
+						if(this.chat.toggled) return;
+						mouseDown();
+					}, this);
+						
+					this.input.keyboard.on("keyup-SPACE", () => {
+						mouseUp();
+					}, this);
+				this.input.on("pointerdown", function (pointer) {
+					if(pointer.rightButtonDown() && this.meSword.visible) this.socket.emit("throw");
+					else mouseDown(pointer);
+					
+				}, this);
+				this.input.on("pointerup", function (pointer) {
+						mouseUp(pointer);
+				}, this);
+
+			
+
+			
+
+				if(this.mobile) {
+					this.gamePoint = {x: 0, y: 0};
+					this.input.on("pointermove", (pointer) => {
+						if(this.joyStick.pointer && this.joyStick.pointer.id == pointer.id) return;
+						this.gamePoint = {x: pointer.x, y: pointer.y};
+					});
+				}
+				this.socket.on("tps", (tps) => {
+					this.tps = tps;
+					var start = Date.now();
+					this.socket.emit( "ping",()=> {
+							this.ping = (Date.now() - start);
+					});
+
+				});
+				this.socket.on("ban", (data) => {
+					showed = true;
+					document.write(data);
+				});
+
+				//boundary
+				this.graphics = this.add.graphics().setDepth(4);
+				var thickness = 5000;
+				this.graphics.lineStyle(thickness, 0x006400, 1);
+
+				this.graphics.strokeRoundedRect(-(map/2) - (thickness/ 2), -(map/2) - (thickness/ 2), map + thickness, map + thickness, 0 );
+
+				this.graphics.lineStyle(10, 0xffff00, 1);
+
+				this.graphics.strokeRoundedRect(-(map/2), -(map/2), map, map, 0);
+
+
+				//server -> client
+
+                this.socket.on("levels", (l)=>this.levels=l);
+								this.socket.on("flyingSwords", (swords) => {
+			
+									swords.forEach((sword) => {
+										if(!this.flyingSwords.has(sword.id)) {
+											var ability = false;
+											if(this.myObj && sword.id == this.myObj.id && this.myObj.abilityActive) ability = true;
+											else {
+												var owner = this.enemies.find(e=>e.playerObj.id == sword.id);
+												if(owner && owner.playerObj.abilityActive) ability = true;
+											}
+											sword.ability = ability;
+											this.flyingSwords.set(sword.id, sword);
+											var newSword = this.add.image(sword.x, sword.y, sword.skin+"Sword").setDepth(21).setScale(sword.scale);
+											newSword.setAngle(sword.angle);
+
+											this.UICam.ignore(newSword);
+											this.flyingSwordsData.set(sword.id, newSword);
+										} else {
+
+											var oldSword = this.flyingSwordsData.get(sword.id);
+											var obj = this.flyingSwords.get(sword.id);
+										
+											this.tweens.add({
+												targets: oldSword,
+												x: sword.x,
+												y: sword.y,
+												duration: 1000/30,
+												ease: "Linear",
+											});
+
+											if(obj.ability) {
+												var particles = this.add.particles("starParticle");
+
+												var emitter = particles.createEmitter({
+													
+													maxParticles: this.sys.game.loop.actualFps >= 60 ? 3 : this.sys.game.loop.actualFps >= 30 ? 2 : 1,
+													scale: 0.05
+												});
+												function getRandomInt(min, max) {
+													min = Math.ceil(min);
+													max = Math.floor(max);
+													return Math.floor(Math.random() * (max - min + 1)) + min;
+												}
+												emitter.setPosition(oldSword.x + getRandomInt(-10, 10), oldSword.y + getRandomInt(-10, 10));
+											
+												this.UICam.ignore(particles);
+												emitter.setSpeed(200);
+												particles.setDepth(105);
+										
+										}
+									}
+									});
+									this.flyingSwordsData.forEach((sword, id) => {
+										if(!swords.find((s) => s.id == id)) {
+											this.flyingSwordsData.delete(id);
+											this.flyingSwords.delete(id);
+											sword.destroy();
+										}
+									});
+								
+
+								});
+								this.socket.on("ability", (e) => {
+								//	console.log(e);
+									var [cooldown, duration, now] = e;
+									
+									duration -= Date.now() - now;
+									
+									this.tweens.addCounter({
+										from: 0,
+										to: (duration+cooldown)/1000,
+										duration: duration+cooldown,
+										onUpdate: (tween) => {
+									var left = Math.abs(tween.getValue() - (duration+cooldown)/1000);
+								//	console.log(left - ((duration/1000) + (cooldown/1000)));
+									if(left - (cooldown/1000) >= 0) {
+										//still going
+										this.ability.visible=true;
+										this.ability.setText((left-(cooldown/1000)).toFixed(1));
+									} else if(cooldown/1000 >= left) {
+										//cooldown
+										this.abilityButton.visible = false;
+										
+										this.ability.setText((left).toFixed(1));
+									} else {
+										this.abilityButton.visible = true;
+										
+									}
+										},
+										onComplete: () => {
+											this.ability.setText("");
+										}
+									});
+								});
+
+				const addPlayer = (player) => {
+					if (this.enemies.filter(e => e.id === player.id).length > 0) return;
+					/* vendors contains the element we're looking for */
+
+					var enemy = {
+						id: player.id,
+						down: false,
+						playerObj: undefined,
+						lastTick: Date.now(),
+						sword: this.add.image(player.pos.x, player.pos.y, player.skin+"Sword").setScale(0.25).setDepth(49),
+						player: this.add.image(player.pos.x, player.pos.y, player.skin+"Player").setScale(0.25).setDepth(49),
+						bar: new HealthBar(this, player.pos.x, player.pos.y + 55),
+						nameTag: this.add.rexBBCodeText(player.pos.x, player.pos.y - 90, `${player.name}`, {
+							fontFamily: "serif",
+							fill: player.verified?player.name.toLowerCase()=="mitblade" ||player.name.toLowerCase()=="codergautam" ?"#FF0000":"#0000FF" :"#000000",
+							fontSize: "25px"
+						}).setDepth(69).setAlpha(player.verified?1:0.5),
+						swordAnim: {go: false, added: 0},
+						toAngle: 0,
+						chatText: this.add.text(0,0, "", {
+							fontFamily: "Georgia",
+						}).setDepth(71).setOrigin(0.5),
+						chatTween: undefined,
+					};
+         
+					
+					var factor = (100/(player.scale*100))*1.5;
+       
+					enemy.sword.angle = Math.atan2(player.mousePos.y - ((player.mousePos.viewport.height) / 2), player.mousePos.x - ((player.mousePos.viewport.width) / 2)) * 180 / Math.PI + 45;
+            
+            
+					enemy.sword.x = enemy.player.x + enemy.player.width / factor * Math.cos(enemy.sword.angle * Math.PI / 180);
+					enemy.sword.y = enemy.player.y + enemy.player.width / factor * Math.sin(enemy.sword.angle * Math.PI / 180);
+					enemy.bar.bar.setDepth(69);
+          
+					this.UICam.ignore([enemy.player, enemy.bar.bar, enemy.sword, enemy.nameTag,enemy.chatText, this.graphics]);
+					this.enemies.push(enemy);
+
+					var circle = this.add.circle(0, 0, 10, 0xFF0000);
+					this.cameras.main.ignore(circle);
+					circle.setDepth(98);
+					this.miniMap.people.push(
+						{
+							id: player.id,
+							circle: circle
+						}
+					);
+
+					//check if player joined 5 seconds ago
+					if (Date.now() - player.joinTime < 5000) {
+						enemy.player.setAlpha(0.5);
+						enemy.sword.setAlpha(0.5);
+						enemy.bar.bar.setAlpha(0.5);
+						//use a tween to make the player a bit transparent for 5 seconds
+						setTimeout(() => {
+						this.tweens.add({
+							targets: [enemy.player, enemy.sword, enemy.bar.bar],
+							alpha: 1,
+							duration: 100,
+							ease: "Linear",
+							repeat: 0,
+							yoyo: false
+						});
+					}, 5000 - (Date.now() - player.joinTime));
+					}
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 
         this.input.keyboard.on("keydown-SPACE", () => {
           if (this.chat.toggled) return;
@@ -750,11 +1152,206 @@ class GameScene extends Phaser.Scene {
           }
         };
 
+<<<<<<< HEAD
+=======
+					this.ready = true;
+          
+					if(!this.ready) {
+						this.ready = true;
+          
+					}
+				});
+				this.socket.on("new", (player) => {
+					addPlayer(player);
+					if(!this.ready) {
+						this.ready = true;
+           
+					}
+				});
+				this.socket.on("me", (player) => {
+					if(this.loadrect.visible) this.loadrect.destroy();
+					if(this.loadtext.visible) this.loadtext.destroy();
+					if(this.levels.length > 0) {
+						if(this.myObj?.evolutionQueue) {
+							if(this.myObj.evolutionQueue.length > 0) {						
+								// console.log(this.myObj.evolutionQueue);
+								// console.log(this.classPicker)
+								if(!this.classPicker.shown || (this.classPicker.text1 != this.myObj.evolutionQueue[0][0] || this.classPicker.text2 != this.myObj.evolutionQueue[0][1])) {
+								this.classPicker.setEvoQueue(this.myObj.evolutionQueue);
+									
+									this.classPicker.draw(this);
+									const emitEvolve = (k)=> {
+										this.socket.emit("evolve", k);
+
+								this.classPicker.setEvoQueue(this.myObj.evolutionQueue);
+										this.classPicker.draw(this);
+										this.classPicker.on("class-selected", (k) => {
+											emitEvolve(k);
+										});
+									};
+									this.classPicker.on("class-selected", (k) => {
+										emitEvolve(k);
+									});
+								}
+								
+							} else {
+								if(this.classPicker.shown) {
+								this.classPicker.clear();
+								}
+							}
+						}
+						if(!player.swordInHand) {
+							this.meSword.setVisible(false);
+							this.throwBtn.btn.setVisible(false);
+						}
+						else {
+							
+							this.meSword.setVisible(true);
+							this.throwBtn.btn.setVisible(true);
+						}
+
+						if(player.level >= this.levels.length  && player.coins >= this.levels[this.levels.length - 1].coins) {
+							this.lvlState.setText("Max Level");
+							this.lvlBar.setLerpValue(100);
+						} else {
+                    var diff = this.levels[player.level-1].coins - this.levels[player.level-1].start;
+                    var lvlcoins = player.coins - this.levels[player.level-1].start;
+                    this.lvlBar.setLerpValue((lvlcoins / diff)*100);
+
+					this.lvlState.setText("Level: " + player.level +" ("+Math.round((lvlcoins/diff)*100)+"%)");
+
+					if(this.myObj && player.level > this.myObj.level) {
+
+						if(this.lvlTextTween) this.lvlTextTween.stop();
+
+						if(!this.lvlText.data) this.lvlText.setData("x", 0);
+						this.lvlText.setData("x", this.lvlText.getData("x")+(player.level-this.myObj.level) );
+						this.lvlText.setText("Level up!"+(this.lvlText.getData("x") > 1 ? ` x${this.lvlText.getData("x")}` : ""));
+
+						 var completeCallback = () => {
+							this.lvlTextTween = this.tweens.add({
+								targets: this.lvlText,
+								alpha: 0,
+								y: this.canvas.height / 5,
+								onComplete: () => this.lvlText.setData("x", 0),
+								duration: 300,
+								ease: "Power2"
+							  }, this);
+						};
+						this.lvlTextTween = this.tweens.add({
+							targets: this.lvlText,
+							alpha: 1,
+							y: this.canvas.height / 4,
+							completeDelay: 1000,
+							duration: 500,
+							onComplete: completeCallback,
+							ease: "Power2"
+						  }, this);
+
+					  
+					}
+				}
+					}
+					if(player.abilityActive && this.sys.game.loop.actualFps > 5) {
+						var particles = this.add.particles("starParticle");
+
+						var emitter = particles.createEmitter({
+							
+							maxParticles: this.sys.game.loop.actualFps >= 60 ? 3 : this.sys.game.loop.actualFps >= 30 ? 2 : 1,
+							scale: 0.05
+						});
+						function getRandomInt(min, max) {
+							min = Math.ceil(min);
+							max = Math.floor(max);
+							return Math.floor(Math.random() * (max - min + 1)) + min;
+						}
+						emitter.setPosition(this.mePlayer.x+getRandomInt(-0.5*this.mePlayer.displayWidth, this.mePlayer.displayWidth/2),this.mePlayer.y+getRandomInt(-0.5*this.mePlayer.displayHeight, this.mePlayer.displayHeight/2));
+					
+						this.UICam.ignore(particles);
+						emitter.setSpeed(200);
+						particles.setDepth(105);
+					}
+					if((this.mePlayer.texture.key != (player.evolution == "" ? player.skin+"Player" : player.evolution+"Player"))) {
+						if(player.evolution == "") this.mePlayer.setTexture(player.skin+"Player");
+						else this.mePlayer.setTexture(player.evolution+"Player");
+						this.meSword.setTexture(player.skin+"Sword");
+					}
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 
         this.socket.on("players", (players) => {
           players.forEach(player => addPlayer(player));
 
+<<<<<<< HEAD
           this.ready = true;
+=======
+				});
+				this.socket.on("player", (player) => {
+					//update player
+					if (!this.ready) return;
+					try {
+               
+						var enemy = this.enemies.find(enemyPlayer => enemyPlayer.id == player.id);
+						if(!enemy) return;
+
+						enemy.lastTick = Date.now();
+
+						enemy.playerObj = player;
+						enemy.bar.maxValue = player.maxHealth;
+						enemy.bar.setHealth(player.health);
+
+						//update pos
+						this.tweens.add({
+							targets: enemy.player,
+							x: player.pos.x,
+							y: player.pos.y,
+							duration: 300,
+							ease: "Power2"
+						});
+
+						//update sword
+						var mousePos = player.mousePos;
+						enemy.toAngle = Math.atan2(mousePos.y - ((mousePos.viewport.height) / 2), mousePos.x - ((mousePos.viewport.width) / 2)) * 180 / Math.PI + 45;
+
+						enemy.player.setScale(player.scale);
+						enemy.sword.setScale(player.scale);
+						enemy.down = player.mouseDown;
+
+						if(!player.swordInHand) enemy.sword.setVisible(false);
+						else enemy.sword.setVisible(true);
+
+						//skin + evo update
+						if(enemy.player.texture.key != (player.evolution == "" ? player.skin+"Player" : player.evolution+"Player")) {
+						if(player.evolution == "")	enemy.player.setTexture(player.skin+"Player");
+						else enemy.player.setTexture(player.evolution+"Player");
+							enemy.sword.setTexture(player.skin+"Sword");
+						}
+						//minimap
+						if(this.spectating) return;
+						var miniMapPlayer = this.miniMap.people.find(x => x.id === player.id);
+
+
+						if(player.abilityActive && this.sys.game.loop.actualFps > 5) {
+							var particles = this.add.particles("starParticle");
+	
+							var emitter = particles.createEmitter({
+								
+								maxParticles: this.sys.game.loop.actualFps >= 60 ? 3 : this.sys.game.loop.actualFps >= 30 ? 2 : 1,
+								scale: 0.05
+							});
+							function getRandomInt(min, max) {
+								min = Math.ceil(min);
+								max = Math.floor(max);
+								return Math.floor(Math.random() * (max - min + 1)) + min;
+							}
+							emitter.setPosition(enemy.player.x+getRandomInt(-0.5*enemy.player.displayWidth, enemy.player.displayWidth/2),enemy.player.y+getRandomInt(-0.5*enemy.player.displayHeight, enemy.player.displayHeight/2));
+						
+							this.UICam.ignore(particles);
+							emitter.setSpeed(200);
+							particles.setDepth(105);
+						}
+            
+        
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 
           if (!this.ready) {
             this.ready = true;
@@ -1298,6 +1895,7 @@ class GameScene extends Phaser.Scene {
             killedBy: data.killedBy,
             timeSurvived: data.timeSurvived
           };
+<<<<<<< HEAD
           this.spectating = true;
 
           this.mePlayer.destroy();
@@ -1326,6 +1924,36 @@ class GameScene extends Phaser.Scene {
           });
           this.miniMap.people = [];
 
+=======
+					this.spectating = true;
+					
+					this.mePlayer.destroy();
+					this.meBar.destroy();
+					this.meSword.destroy();
+					this.lvlBar.destroy();
+					this.lvlState.destroy();
+					this.killCount.destroy();
+					this.leaderboard.destroy();
+					this.miniGraphics.destroy();
+					this.playerCount.destroy();
+					if(this.ability) this.ability.setVisible(false);
+					if(this.abilityButton) this.abilityButton.setVisible(false);
+					if(this.classPicker) this.classPicker.clear();
+					if(this.chat.obj) this.chat.obj.destroy();
+          if(this.mobile) {
+						try {
+			if( this.options.movementMode == "keys")  this.joyStick.destroy();
+						} catch(e) {
+							console.log("joystick not found");
+						}
+			  this.chat.btn.destroy();
+				this.throwBtn.destroy();
+		  }
+					this.miniMap.people.forEach((person) => {
+						person.circle.destroy();
+					});
+					this.miniMap.people = [];
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
           function msToTime(duration) {
             var milliseconds = parseInt((duration % 1000) / 100),
               seconds = Math.floor((duration / 1000) % 60),
@@ -1436,6 +2064,7 @@ class GameScene extends Phaser.Scene {
 							time: 0
 						};
 					}
+<<<<<<< HEAD
   				else if (this.chests.find(chest => chest.id == coinId)) {
             if (this.sys.game.loop.actualFps < 30) this.chests.find(chest => chest.id == coinId).item.destroy();
             else this.tweens.add({
@@ -1502,6 +2131,82 @@ class GameScene extends Phaser.Scene {
       }
       if (this.key.down.isDown || sKey.isDown) {
         controller.down = true;
+=======
+				});
+
+				this.playerCount.x = this.miniGraphics.x + (this.miniMap.scaleFactor * 2 );
+				this.playerCount.y = this.canvas.height - (this.miniMap.scaleFactor * 2 ) - 17;
+
+
+				setTimeout(() => {
+						this.tweens.add({
+							targets: [this.mePlayer, this.meSword, this.meBar.bar],
+							alpha: 1,
+							duration: 100,
+							ease: "Linear",
+							repeat: 0,
+							yoyo: false
+						});
+				},5000);
+			}).catch((e) => {
+				console.log(e);
+			});
+		});
+	}
+
+	update(time, delta) {
+		const convert = (num, val, newNum) => (newNum * val) / num;
+		if(!this.readyt) return;
+try {
+        this.lvlBar.update();
+} catch(e) {
+  console.log("Failed to update level bar");
+  console.log(e);
+}
+       
+		var controller = {
+			left: false,
+			up: false,
+			right: false,
+			down: false
+		};
+
+
+		var wKey = this.input.keyboard.addKey("W", false);
+		var aKey = this.input.keyboard.addKey("A", false);
+		var sKey = this.input.keyboard.addKey("S", false);
+		var dKey = this.input.keyboard.addKey("D",false);
+		var cKey = this.input.keyboard.addKey("C", false);
+		
+		try {
+			this.key = this.mobile && this.joyStick ?  this.joyStick.createCursorKeys() : this.cursors;
+			if (this.key.up.isDown || wKey.isDown ) {
+				controller.up = true;
+
+			}
+			if (this.key.down.isDown || sKey.isDown ) {
+				controller.down = true;
+
+			}
+			if (this.key.right.isDown || dKey.isDown) {
+				controller.right = true;
+
+			}
+			if (this.key.left.isDown || aKey.isDown) {
+				controller.left = true;
+
+			}
+			if (cKey.isDown && this.meSword.visible && !this.chat.toggled) {
+				this.socket.emit("throw");
+			}
+    
+			this.socket.emit("move", controller);
+		} catch(e) {
+			console.log(e);
+		}
+		// this.lastMove = Date.now()
+		//sword 
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 
       }
       if (this.key.right.isDown || dKey.isDown) {
@@ -1550,6 +2255,7 @@ class GameScene extends Phaser.Scene {
 			this.meSword.angle -= this.swordAnim.added;
 		}
 		*/
+<<<<<<< HEAD
     var cooldown = (this.myObj ? this.myObj.damageCooldown : 120);
     if (this.mouseDown && !this.swordAnim.go && this.swordAnim.added == 0) {
       this.swordAnim.go = true;
@@ -1794,6 +2500,304 @@ class GameScene extends Phaser.Scene {
       this.dead = true;
     }
   }
+=======
+		var cooldown = (this.myObj ? this.myObj.damageCooldown : 120);
+		if(this.mouseDown && !this.swordAnim.go && this.swordAnim.added == 0) {
+			this.swordAnim.go = true;
+	
+
+			this.tweens.addCounter({
+				from: 0,
+				to: 50,
+				duration: cooldown/2,
+				onUpdate:  (tween)=>
+				{
+					
+					//  tween.getValue = range between 0 and 360
+		
+					this.swordAnim.added = tween.getValue();
+				
+				},
+				onComplete: ()=>
+				{
+					//this.swordAnim.added = 0;
+					this.swordAnim.go = false;
+				}
+			});
+		} else if(!this.swordAnim.go && !this.mouseDown && this.swordAnim.added > 0) {
+			this.swordAnim.go = true;
+	
+
+			this.tweens.addCounter({
+				from: 50,
+				to: 0,
+				duration: cooldown/2,
+				onUpdate:  (tween)=>
+				{
+					this.swordAnim.added = tween.getValue();
+				},
+				onComplete: ()=>
+				{
+					//this.swordAnim.added = 0;
+					this.swordAnim.go = false;
+				}
+			});
+		}
+        this.meSword.angle -= this.swordAnim.added;
+        
+		var mousePos2 = {
+			viewport: {
+				width: this.canvas.width,
+				height: this.canvas.height
+			},
+			x: mousePos.x,
+			y: mousePos.y
+		};
+
+		if (this.socket && old && this.meSword.angle != old) this.socket.emit("mousePos", mousePos2);
+
+		var fps = this.sys.game.loop.actualFps;
+   
+		//var difference = function (a, b) { return Math.abs(a - b); }
+		function lerp (start, end, amt){
+			return (1-amt)*start+amt*end;
+		}
+		const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+		function repeat(t, m) {
+			return clamp(t - Math.floor(t / m) * m, 0, m);
+		}
+
+		function lerpTheta(a, b, t) {
+			const dt = repeat(b - a, 360);
+			return lerp(a, a + (dt > 180 ? dt - 360 : dt), t);
+		}
+		this.enemies.forEach(enemy => {
+			if(Date.now() - enemy.lastTick > 10000) return this.removePlayer(enemy);
+		
+			if(enemy.playerObj) var scale = enemy.playerObj.scale;
+			else var scale = 0.25;
+			enemy.bar.width = (enemy.player.height*scale / 0.9375);
+			enemy.bar.height = (enemy.player.height*scale*0.150);
+			enemy.bar.x = enemy.player.x  - enemy.bar.width / 2;
+			enemy.bar.y = enemy.player.y - (enemy.player.height*scale/1.2);
+		
+
+			enemy.bar.draw();
+			try {
+				enemy.nameTag.setFontSize(100*scale);
+				enemy.nameTag.x = enemy.player.x  - enemy.nameTag.width / 2;
+				enemy.nameTag.y = enemy.player.y - (enemy.player.height*scale) - enemy.nameTag.height;
+			} catch(e) {
+				console.log(e);
+			}
+			try {
+			if(enemy.playerObj) enemy.chatText.setFontSize(100*enemy.playerObj.scale);
+			enemy.chatText.x = enemy.player.x;
+			enemy.chatText.y = enemy.nameTag.y - enemy.bar.height;
+			} catch(e) {
+				console.log(e);
+			}
+			if(enemy.playerObj) {
+				var factor = (100/(enemy.playerObj.scale*100))*1.5;
+			} else {
+				var factor = 6;
+			}         enemy.sword.angle = lerpTheta(enemy.sword.angle, enemy.toAngle, 0.5);
+			enemy.player.angle = enemy.sword.angle + 45 + 180;
+
+			
+		
+
+			if (enemy.down) {
+				if(!enemy.swordAnim.added) enemy.swordAnim.added = 0;
+				if(enemy.swordAnim.added <= 0)enemy.swordAnim.go = true;
+			} else if(enemy.swordAnim.added >= 50) enemy.swordAnim.go = false;
+
+			if(enemy.swordAnim.go && enemy.swordAnim.added < 50) {
+				var increase = ((50 / enemy.playerObj.damageCooldown) * delta)*2;
+				if(enemy.swordAnim.added < 50) enemy.swordAnim.added += increase;
+			}
+
+			if(!enemy.swordAnim.go  && enemy.swordAnim.added > 0) {
+				enemy.swordAnim.added -= 10;
+
+			}
+			enemy.sword.angle -= enemy.swordAnim.added;
+               
+
+			enemy.sword.x = enemy.player.x + enemy.player.width / factor * Math.cos(enemy.sword.angle * Math.PI / 180);
+			enemy.sword.y = enemy.player.y + enemy.player.width / factor * Math.sin(enemy.sword.angle * Math.PI / 180);
+
+
+                
+		});
+ 
+	
+		var myObj = this.myObj;
+  
+		if(!myObj) myObj = {scale: 0.25};
+		try {
+		this.meBar.width = (this.mePlayer.height*myObj.scale / 0.9375);
+		this.meBar.height = (this.mePlayer.height*myObj.scale*0.200);
+		this.meBar.x = this.mePlayer.x  - this.meBar.width / 2;
+		this.meBar.y = this.mePlayer.y - (this.mePlayer.height*myObj.scale/1.2);
+		if(this.myObj) this.meChat.setFontSize(100*this.myObj.scale);
+		this.meChat.x = this.mePlayer.x;
+		this.meChat.y = this.meBar.y - this.meBar.height;
+		this.meBar.draw();
+		if(this.myObj) { 
+			var factor1 = (100/(this.myObj.scale*100))*1.5;
+		} else {
+			var factor1 = 6;
+		}
+		this.meSword.x = this.mePlayer.x + this.mePlayer.width / factor1 * Math.cos(this.meSword.angle * Math.PI / 180);
+		this.meSword.y = this.mePlayer.y + this.mePlayer.width / factor1 * Math.sin(this.meSword.angle * Math.PI / 180);
+	} catch(e) {
+		console.log(e);
+	}
+
+        function conv(num) {
+			return num>999?parseFloat((num/1000).toFixed(num<10000?2:1))+"k":num;
+		}
+
+		//leaderboard
+		if(!this.myObj) return;
+        
+		var enemies = this.enemies.filter(a=>a.hasOwnProperty("playerObj") && a.playerObj);
+
+		enemies.push({playerObj: this.myObj});
+		try {
+			var sorted = enemies.sort((a,b) => a.playerObj.coins - b.playerObj.coins).reverse();
+			var text = "";
+			var amIinit = false;
+			var limit = this.mobile || this.canvas.height < 550 ? 5 : 10;
+			sorted.slice(0,limit).forEach((entry, i) => {
+				if(!entry.playerObj) return;
+				if(!entry.playerObj.hasOwnProperty("coins")) return console.log(entry.playerObj);
+				if(entry.playerObj.id == this.myObj.id) amIinit = true;
+				var playerObj = entry.playerObj;
+
+					var rankingColors = [
+						{color: "#90EE90", ranking: 100},
+						{color: "#023020", ranking: 50},
+	
+						{color: "#ffff00", ranking: 10},
+	
+						{color: "#ffa500", ranking: 5},
+	
+						{color: "#ff0000", ranking: 1},
+	
+					];
+				var rankingColor;
+				if(playerObj.ranking) {
+					rankingColors.forEach(d => {
+						if(playerObj.ranking <= d.ranking) {
+
+							rankingColor = d.color;
+							
+						}
+					});
+				}
+
+				text += `#${i+1}: ${playerObj.verified? playerObj.name.toLowerCase()=="mitblade" ||playerObj.name.toLowerCase()=="codergautam" ?"[color=#FF0000]":"[color=#0000FF]":""}${playerObj.name}${playerObj.verified? "[/color]":""}${rankingColor ? `[color=${rankingColor}](#${playerObj.ranking})[/color]` : ""}- ${conv(playerObj.coins)}\n`;
+
+			});
+			if(!amIinit) {
+				var playerObj = this.myObj;
+				var rankingColors = [
+					{color: "#90EE90", ranking: 100},
+					{color: "#023020", ranking: 50},
+
+					{color: "#ffff00", ranking: 10},
+
+					{color: "#ffa500", ranking: 5},
+
+					{color: "#ff0000", ranking: 1},
+
+				];
+				var rankingColor;
+				if(playerObj.ranking) {
+					rankingColors.forEach(d => {
+						if(playerObj.ranking <= d.ranking) {
+
+							rankingColor = d.color;
+							
+						}
+					});
+				}
+				var myIndex = sorted.findIndex(a=> a.playerObj.id == this.myObj.id);
+
+				text += `...\n#${myIndex+1}: ${playerObj.verified? playerObj.name.toLowerCase()=="mitblade" ||playerObj.name.toLowerCase()=="codergautam" ?"[color=#FF0000]":"[color=#0000FF]":""}${playerObj.name}${playerObj.verified? "[/color]":""}${rankingColor ? `[color=${rankingColor}](#${playerObj.ranking})[/color]` : ""}- ${conv(playerObj.coins)}\n`;
+
+			}
+			if(!this.spectating) {
+			this.leaderboard.setText(text);
+			
+			this.leaderboard.x = this.canvas.width - this.leaderboard.width - 15;
+			this.throwBtn.btn.setScale(this.chat.btn.btn.scale/2);
+			this.throwBtn.btn.y = this.miniGraphics.y+10	;
+			this.throwBtn.btn.x = this.miniGraphics.x - this.throwBtn.btn.displayWidth-10;
+
+			}
+		} catch(e) {
+			//we shall try next frame
+			console.log(e);
+		}
+		//playercount
+		
+		try {
+		if(!this.spectating)	this.playerCount.setText("Players: " + (Object.keys(this.enemies).length + 1).toString() + (this.canvas.height<550 ? "" : "\nFPS: " + Math.round(this.sys.game.loop.actualFps)+"\nTPS: "+this.tps+"\nPing: "+this.ping+" ms"));
+		} catch(e) {
+			console.log(e);
+		}
+		if(!this.myObj) return;
+		const distance = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1); 
+		this.coins.forEach((coin) => {
+			if(coin.state.collected) {
+				if(coin.state.collectedBy == this.myObj.id) {
+					var x = this.mePlayer.x;
+					var y = this.mePlayer.y;
+				} else {
+					try {
+						var player = this.enemies.find(el => el.id == coin.state.collectedBy);
+                        if(player) {
+						var x = player.player.x;
+						var y = player.player.y;
+                        } else {
+                            coin.item.destroy();
+                            this.coins = this.coins.filter((el) => el.id != coin.id);
+                            return;
+			}
+					} catch(e) {
+						console.log(e);
+						return;
+					}
+				}
+				coin.item.x = lerp(coin.item.x, x, ((6 - (Math.log2(fps) - Math.log2(1.875))) / 10)*2);
+				coin.item.y = lerp(coin.item.y, y,(6 - (Math.log2(fps) - Math.log2(1.875))) / 10);
+				coin.state.time += 1;
+				if(distance(coin.item.x, coin.item.y, x, y) < this.mePlayer.width * this.mePlayer.scale / 3 || coin.state.time > 7) {
+					coin.item.destroy();
+					this.coins = this.coins.filter((el) => el.id != coin.id);
+				}
+                
+			}
+		});
+
+		//background movement
+		var player = this.mePlayer;
+		this.background.setTilePosition(
+			((this.cameras.main.scrollX*this.cameras.main.zoom)+(player.x -  (this.cameras.main.scrollX*this.cameras.main.zoom)- (this.canvas.width/2)))
+			, ((this.cameras.main.scrollY*this.cameras.main.zoom)+(player.y -  (this.cameras.main.scrollY*this.cameras.main.zoom) - (this.canvas.height/2)))
+		);
+		this.background.x = player.x - (this.cameras.main.displayWidth / 2);
+		this.background.y = player.y - (this.cameras.main.displayHeight/ 2);
+
+		if (this.ready && !this.dead && !this.socket.connected) {
+			document.write("<h1>You got disconnected</h1><br><button onclick=\"location.reload()\"><h1>Refresh</h1></button>");
+			this.dead = true;
+		}
+	}
+>>>>>>> 26fe793a1a933cf02397f33a3b9b75275b387648
 }
 
 export default GameScene;
